@@ -28,9 +28,15 @@ test("SIEM search filters noisy telemetry and preserves evidence in Case", async
     "destinationIp:203.0.113.77",
   );
 
-  await expect(workspace).toContainText(
-    "1 matching events",
+  const resultCount = workspace.locator(
+    ".siem-result-count",
   );
+  await expect(
+    resultCount.locator("strong"),
+  ).toHaveText("1");
+  await expect(
+    resultCount.locator("span"),
+  ).toHaveText("matching events");
   await expect(workspace).toContainText(
     "Network connection 10.20.30.44 -> 203.0.113.77",
   );
