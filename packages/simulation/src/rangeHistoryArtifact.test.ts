@@ -23,7 +23,6 @@ import type {
 const host = createSyntheticHostState({
   deviceId: "device-fin-lt-04",
   capabilities: [
-    "read:history",
     "terminate:process",
   ],
   processes: [
