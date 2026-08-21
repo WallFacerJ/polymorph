@@ -146,6 +146,7 @@ export function SiemWorkspace({
   return (
     <div
       className="siem-workspace"
+      role="region"
       aria-label="SIEM search workspace"
     >
       <section className="siem-search-panel">
@@ -209,6 +210,7 @@ export function SiemWorkspace({
         {savedQueries.length > 0 && (
           <div
             className="siem-saved-queries"
+            role="region"
             aria-label="Saved SIEM queries"
           >
             <span>Saved</span>
