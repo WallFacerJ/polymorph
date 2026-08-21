@@ -44,6 +44,10 @@ import {
 } from "./CaseWorkspace";
 
 import {
+  RangeWorkspace,
+} from "./RangeWorkspace";
+
+import {
   addAnalystFinding,
   collectAnalystEvidence,
   createAnalystCaseState,
@@ -52,11 +56,14 @@ import {
   getScenarioState,
   identityProjection,
   rebuildProjection,
+  replaySyntheticHostCommands,
   siemProjection,
 } from "./simulationAdapter";
 
 import type {
   ScenarioDefinition,
+  SyntheticHostCommand,
+  SyntheticHostCommandInvocation,
 } from "./simulationAdapter";
 
 import {
@@ -70,7 +77,8 @@ type WorkspaceView =
   | "siem"
   | "endpoint"
   | "identity"
-  | "case";
+  | "case"
+  | "range";
 
 const navItems: ReadonlyArray<{
   id: WorkspaceView;
@@ -82,6 +90,7 @@ const navItems: ReadonlyArray<{
   { id: "endpoint", label: "Endpoint" },
   { id: "identity", label: "Identity" },
   { id: "case", label: "Case" },
+  { id: "range", label: "Range" },
 ];
 
 function formatTimestamp(
@@ -141,6 +150,10 @@ function ScenarioWorkspace({
       query: "",
       nonce: 0,
     });
+  const [rangeDeviceId, setRangeDeviceId] =
+    useState(context.deviceId);
+  const [rangeInvocations, setRangeInvocations] =
+    useState<SyntheticHostCommandInvocation[]>([]);
 
   const scenarioState = useMemo(
     () =>
@@ -176,6 +189,26 @@ function ScenarioWorkspace({
       ),
     }),
     [scenarioState.events],
+  );
+
+  const rangeInitialHost = useMemo(
+    () =>
+      (scenario.syntheticHosts ?? []).find(
+        (host) =>
+          host.deviceId === rangeDeviceId,
+      ),
+    [scenario.syntheticHosts, rangeDeviceId],
+  );
+
+  const rangeReplay = useMemo(
+    () =>
+      rangeInitialHost
+        ? replaySyntheticHostCommands(
+            rangeInitialHost,
+            rangeInvocations,
+          )
+        : null,
+    [rangeInitialHost, rangeInvocations],
   );
 
   const user =
@@ -358,6 +391,57 @@ function ScenarioWorkspace({
     setActiveView("siem");
   };
 
+  const openRange = (deviceId: string) => {
+    if (deviceId !== rangeDeviceId) {
+      setRangeInvocations([]);
+    }
+    setRangeDeviceId(deviceId);
+    setActiveView("range");
+  };
+
+  const executeRangeCommand = (
+    command: SyntheticHostCommand,
+  ): string | null => {
+    if (scenarioState.finalized) {
+      return "The finalized run is read-only. Reset the scenario to operate the host again.";
+    }
+
+    if (!rangeInitialHost) {
+      return `No synthetic host is authored for device ${rangeDeviceId}.`;
+    }
+
+    const baseTimestamp =
+      scenario.openingEvents.at(-1)?.timestamp ??
+      scenario.initialWorld.simulationTime;
+    const invocation: SyntheticHostCommandInvocation = {
+      id: `range-command-${rangeInvocations.length + 1}`,
+      timestamp: new Date(
+        Date.parse(baseTimestamp) +
+          (rangeInvocations.length + 1) * 1000,
+      ).toISOString(),
+      command,
+    };
+
+    try {
+      replaySyntheticHostCommands(
+        rangeInitialHost,
+        [
+          ...rangeInvocations,
+          invocation,
+        ],
+      );
+      setRangeInvocations((current) => [
+        ...current,
+        invocation,
+      ]);
+      return null;
+    } catch (caught: unknown) {
+      return caught instanceof Error
+        ? caught.message
+        : String(caught);
+    }
+  };
+
   const resetScenario = () => {
     setPerformedActionIds([]);
     setFinalized(false);
@@ -368,6 +452,8 @@ function ScenarioWorkspace({
     setFindingSummary("");
     setSelectedEvidenceIds([]);
     setCaseError(null);
+    setRangeInvocations([]);
+    setRangeDeviceId(context.deviceId);
     setActiveView("alerts");
   };
 
@@ -384,7 +470,10 @@ function ScenarioWorkspace({
           </p>
 
           <nav className="workspace-nav">
-            {navItems.map((item) => (
+            {navItems.filter((item) =>
+              item.id !== "range" ||
+              (scenario.syntheticHosts?.length ?? 0) > 0,
+            ).map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -704,6 +793,10 @@ function ScenarioWorkspace({
               onCollect={collectEvidence}
               onSearchSiem={openSiem}
               onOpenCase={() => setActiveView("case")}
+              rangeDeviceIds={(scenario.syntheticHosts ?? []).map(
+                (host) => host.deviceId,
+              )}
+              onOpenRange={openRange}
             />
           </section>
         )}
@@ -723,6 +816,27 @@ function ScenarioWorkspace({
               onSearchSiem={openSiem}
               onOpenCase={() => setActiveView("case")}
             />
+          </section>
+        )}
+
+        {activeView === "range" && (
+          <section className="workspace-section range-section">
+            {rangeInitialHost &&
+            rangeReplay &&
+            scenarioState.world.devices[rangeDeviceId] ? (
+              <RangeWorkspace
+                device={scenarioState.world.devices[rangeDeviceId]}
+                host={rangeReplay.state}
+                invocations={rangeInvocations}
+                executions={rangeReplay.executions}
+                finalized={scenarioState.finalized}
+                onExecute={executeRangeCommand}
+              />
+            ) : (
+              <div className="case-empty">
+                No synthetic Range host is authored for this device.
+              </div>
+            )}
           </section>
         )}
 

@@ -31,6 +31,8 @@ interface EdrWorkspaceProps {
   onCollect: (eventId: string) => void;
   onSearchSiem: (query: string) => void;
   onOpenCase: () => void;
+  rangeDeviceIds: readonly string[];
+  onOpenRange: (deviceId: string) => void;
 }
 
 type EdrTab =
@@ -133,6 +135,8 @@ export function EdrWorkspace({
   onCollect,
   onSearchSiem,
   onOpenCase,
+  rangeDeviceIds,
+  onOpenRange,
 }: EdrWorkspaceProps) {
   const observedDeviceIds = useMemo(
     () => getObservedEdrDeviceIds(state),
@@ -312,6 +316,15 @@ export function EdrWorkspace({
                 <strong>{investigation.endpoint?.status ?? selectedDevice?.status ?? "—"}</strong>
               </span>
             </div>
+            {rangeDeviceIds.includes(selectedDeviceId) && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onOpenRange(selectedDeviceId)}
+              >
+                Open synthetic host
+              </button>
+            )}
           </div>
 
           <div
