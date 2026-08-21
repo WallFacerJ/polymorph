@@ -65,6 +65,18 @@ function reduce(
       };
       break;
 
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
+      observation = {
+        eventId: event.id,
+        timestamp: event.timestamp,
+        deviceId: event.payload.deviceId,
+        eventType: event.type,
+        targetId: event.payload.serviceName,
+        summary:
+          `Range changed service ${event.payload.serviceName} startup mode: ${event.payload.previousStartupMode} -> ${event.payload.startupMode}.`,
+      };
+      break;
+
     case "HOST_FILE_QUARANTINED":
       observation = {
         eventId: event.id,
