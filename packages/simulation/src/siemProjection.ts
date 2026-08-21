@@ -134,6 +134,9 @@ function getMessage(
     case "HOST_SERVICE_STATE_CHANGED":
       return `Range changed service ${event.payload.serviceName} on ${event.payload.deviceId}: ${event.payload.previousStatus} -> ${event.payload.status}`;
 
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
+      return `Range changed service ${event.payload.serviceName} startup mode on ${event.payload.deviceId}: ${event.payload.previousStartupMode} -> ${event.payload.startupMode}`;
+
     case "HOST_FILE_QUARANTINED":
       return `Range quarantined ${event.payload.originalPath} on ${event.payload.deviceId}`;
 
@@ -282,6 +285,15 @@ function getFields(
         status: event.payload.status,
       });
 
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
+      return definedFields({
+        deviceId: event.payload.deviceId,
+        serviceName: event.payload.serviceName,
+        previousStartupMode:
+          event.payload.previousStartupMode,
+        startupMode: event.payload.startupMode,
+      });
+
     case "HOST_FILE_QUARANTINED":
       return definedFields({
         deviceId: event.payload.deviceId,
@@ -343,6 +355,7 @@ function getRelatedEntityIds(
       ];
 
     case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
     case "HOST_FILE_QUARANTINED":
       return [event.payload.deviceId];
 
