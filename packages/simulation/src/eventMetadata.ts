@@ -47,6 +47,7 @@ export function getSimulationEventFamily(
 
     case "HOST_PROCESS_TERMINATED":
     case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
     case "HOST_FILE_QUARANTINED":
     case "HOST_EVIDENCE_COLLECTED":
       return "host";
