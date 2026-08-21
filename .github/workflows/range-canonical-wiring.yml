@@ -1,0 +1,146 @@
+name: Wire Range canonical history
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/range-canonical-evidence'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/range-canonical-evidence
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wire canonical Range history into app
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/App.tsx')
+          app = path.read_text()
+
+          edr_import = 'import {\n  EdrWorkspace,\n} from "./EdrWorkspace";\n'
+          if 'from "./EdrHostActivityPanel"' not in app:
+              if edr_import not in app:
+                  raise SystemExit('EDR import marker missing')
+              app = app.replace(
+                  edr_import,
+                  edr_import + '\nimport {\n  EdrHostActivityPanel,\n} from "./EdrHostActivityPanel";\n',
+                  1,
+              )
+
+          old_exports = '''  createAnalystCaseState,\n  edrProjection,\n  finalizeScenarioState,\n  getScenarioState,\n  identityProjection,\n  rebuildProjection,\n  replaySyntheticHostCommands,\n  siemProjection,\n'''
+          new_exports = '''  createAnalystCaseState,\n  createRangeEvidenceEvent,\n  edrHostActivityProjection,\n  edrProjection,\n  finalizeScenarioState,\n  getScenarioState,\n  identityProjection,\n  mergeSimulationEventHistory,\n  rebuildProjection,\n  replayRangeCommandsWithEvents,\n  siemProjection,\n'''
+          if '  createRangeEvidenceEvent,\n' not in app:
+              if old_exports not in app:
+                  raise SystemExit('simulation export marker missing')
+              app = app.replace(old_exports, new_exports, 1)
+
+          old_types = '''import type {\n  ScenarioDefinition,\n  SyntheticHostCommand,\n  SyntheticHostCommandInvocation,\n} from "./simulationAdapter";\n'''
+          new_types = '''import type {\n  ScenarioDefinition,\n  SimulationEvent,\n  SyntheticHostCommand,\n  SyntheticHostCommandInvocation,\n} from "./simulationAdapter";\n'''
+          if '  SimulationEvent,\n' not in app:
+              if old_types not in app:
+                  raise SystemExit('type import marker missing')
+              app = app.replace(old_types, new_types, 1)
+
+          state_marker = '''  const [rangeInvocations, setRangeInvocations] =\n    useState<SyntheticHostCommandInvocation[]>([]);\n'''
+          if 'const [rangeEvidenceEvents' not in app:
+              if state_marker not in app:
+                  raise SystemExit('Range invocation state marker missing')
+              app = app.replace(
+                  state_marker,
+                  state_marker + '''  const [rangeEvidenceEvents, setRangeEvidenceEvents] =\n    useState<SimulationEvent[]>([]);\n''',
+                  1,
+              )
+
+          old_derived = '''  const projections = useMemo(\n    () => ({\n      identity: rebuildProjection(\n        identityProjection,\n        scenarioState.events,\n      ),\n      edr: rebuildProjection(\n        edrProjection,\n        scenarioState.events,\n      ),\n      siem: rebuildProjection(\n        siemProjection,\n        scenarioState.events,\n      ),\n    }),\n    [scenarioState.events],\n  );\n\n  const rangeInitialHost = useMemo(\n    () =>\n      (scenario.syntheticHosts ?? []).find(\n        (host) =>\n          host.deviceId === rangeDeviceId,\n      ),\n    [scenario.syntheticHosts, rangeDeviceId],\n  );\n\n  const rangeReplay = useMemo(\n    () =>\n      rangeInitialHost\n        ? replaySyntheticHostCommands(\n            rangeInitialHost,\n            rangeInvocations,\n          )\n        : null,\n    [rangeInitialHost, rangeInvocations],\n  );\n'''
+          new_derived = '''  const rangeInitialHost = useMemo(\n    () =>\n      (scenario.syntheticHosts ?? []).find(\n        (host) =>\n          host.deviceId === rangeDeviceId,\n      ),\n    [scenario.syntheticHosts, rangeDeviceId],\n  );\n\n  const rangeReplay = useMemo(\n    () =>\n      rangeInitialHost\n        ? replayRangeCommandsWithEvents(\n            rangeInitialHost,\n            rangeInvocations,\n          )\n        : null,\n    [rangeInitialHost, rangeInvocations],\n  );\n\n  const canonicalEvents = useMemo(\n    () =>\n      mergeSimulationEventHistory(\n        scenarioState.events,\n        rangeReplay?.events ?? [],\n        rangeEvidenceEvents,\n      ),\n    [\n      scenarioState.events,\n      rangeReplay,\n      rangeEvidenceEvents,\n    ],\n  );\n\n  const projections = useMemo(\n    () => ({\n      identity: rebuildProjection(\n        identityProjection,\n        canonicalEvents,\n      ),\n      edr: rebuildProjection(\n        edrProjection,\n        canonicalEvents,\n      ),\n      edrHost: rebuildProjection(\n        edrHostActivityProjection,\n        canonicalEvents,\n      ),\n      siem: rebuildProjection(\n        siemProjection,\n        canonicalEvents,\n      ),\n    }),\n    [canonicalEvents],\n  );\n'''
+          if 'const canonicalEvents = useMemo(' not in app:
+              if old_derived not in app:
+                  raise SystemExit('derived-state block missing')
+              app = app.replace(old_derived, new_derived, 1)
+
+          app = app.replace(
+              '        scenarioState.events,\n      ),\n    );\n  };\n\n  const toggleFindingEvidence',
+              '        canonicalEvents,\n      ),\n    );\n  };\n\n  const toggleFindingEvidence',
+              1,
+          )
+
+          finding_marker = '''        scenarioState.events,\n      );\n\n      setAnalystCase(next);\n'''
+          if finding_marker in app:
+              app = app.replace(
+                  finding_marker,
+                  '''        canonicalEvents,\n      );\n\n      setAnalystCase(next);\n''',
+                  1,
+              )
+
+          old_execute = '''    const baseTimestamp =\n      scenario.openingEvents.at(-1)?.timestamp ??\n      scenario.initialWorld.simulationTime;\n    const invocation: SyntheticHostCommandInvocation = {\n      id: `range-command-${rangeInvocations.length + 1}`,\n      timestamp: new Date(\n        Date.parse(baseTimestamp) +\n          (rangeInvocations.length + 1) * 1000,\n      ).toISOString(),\n      command,\n    };\n\n    try {\n      replaySyntheticHostCommands(\n        rangeInitialHost,\n        [\n          ...rangeInvocations,\n          invocation,\n        ],\n      );\n'''
+          new_execute = '''    const latestTimestamp =\n      canonicalEvents.at(-1)?.timestamp ??\n      scenario.openingEvents.at(-1)?.timestamp ??\n      scenario.initialWorld.simulationTime;\n    const invocation: SyntheticHostCommandInvocation = {\n      id: `range-command-${rangeInvocations.length + 1}`,\n      timestamp: new Date(\n        Date.parse(latestTimestamp) + 1000,\n      ).toISOString(),\n      command,\n    };\n\n    try {\n      replayRangeCommandsWithEvents(\n        rangeInitialHost,\n        [\n          ...rangeInvocations,\n          invocation,\n        ],\n      );\n'''
+          if old_execute not in app:
+              raise SystemExit('Range execute block missing')
+          app = app.replace(old_execute, new_execute, 1)
+
+          reset_marker = '''  const resetScenario = () => {\n'''
+          if 'const collectRangeExecution = (' not in app:
+              collect_fn = '''  const collectRangeExecution = (\n    executionIndex: number,\n  ): string | null => {\n    if (scenarioState.finalized) {\n      return "The finalized run is read-only. Reset the scenario to collect new Range evidence.";\n    }\n\n    if (!rangeInitialHost || !rangeReplay) {\n      return "No active synthetic host execution is available.";\n    }\n\n    const invocation = rangeInvocations[executionIndex];\n    const execution = rangeReplay.executions[executionIndex];\n\n    if (!invocation || !execution) {\n      return "Range execution is unavailable.";\n    }\n\n    const evidenceId = `${invocation.id}-evidence`;\n\n    if (\n      rangeEvidenceEvents.some(\n        (event) => event.id === evidenceId,\n      )\n    ) {\n      return null;\n    }\n\n    try {\n      const latestTimestamp =\n        canonicalEvents.at(-1)?.timestamp ??\n        invocation.timestamp;\n      const evidenceEvent =\n        createRangeEvidenceEvent({\n          id: evidenceId,\n          timestamp: new Date(\n            Math.max(\n              Date.parse(latestTimestamp),\n              Date.parse(invocation.timestamp),\n            ) + 1,\n          ).toISOString(),\n          deviceId: rangeInitialHost.deviceId,\n          invocation,\n          execution,\n        });\n      const nextRangeEvidenceEvents = [\n        ...rangeEvidenceEvents,\n        evidenceEvent,\n      ];\n      const nextHistory =\n        mergeSimulationEventHistory(\n          scenarioState.events,\n          rangeReplay.events,\n          nextRangeEvidenceEvents,\n        );\n\n      setRangeEvidenceEvents(\n        nextRangeEvidenceEvents,\n      );\n      setAnalystCase((current) =>\n        collectAnalystEvidence(\n          current,\n          evidenceEvent.id,\n          nextHistory,\n        ),\n      );\n      setCaseError(null);\n      return null;\n    } catch (caught: unknown) {\n      return caught instanceof Error\n        ? caught.message\n        : String(caught);\n    }\n  };\n\n'''
+              if reset_marker not in app:
+                  raise SystemExit('reset marker missing')
+              app = app.replace(reset_marker, collect_fn + reset_marker, 1)
+
+          reset_body = '''    setRangeInvocations([]);\n    setRangeDeviceId(context.deviceId);\n'''
+          if '    setRangeEvidenceEvents([]);\n' not in app:
+              if reset_body not in app:
+                  raise SystemExit('reset Range marker missing')
+              app = app.replace(
+                  reset_body,
+                  '''    setRangeInvocations([]);\n    setRangeEvidenceEvents([]);\n    setRangeDeviceId(context.deviceId);\n''',
+                  1,
+              )
+
+          endpoint_close = '''              onOpenRange={openRange}\n            />\n          </section>\n        )}\n'''
+          if '<EdrHostActivityPanel' not in app:
+              if endpoint_close not in app:
+                  raise SystemExit('Endpoint render marker missing')
+              app = app.replace(
+                  endpoint_close,
+                  '''              onOpenRange={openRange}\n            />\n            <EdrHostActivityPanel\n              state={projections.edrHost}\n              deviceId={context.deviceId}\n              onSearchSiem={openSiem}\n            />\n          </section>\n        )}\n''',
+                  1,
+              )
+
+          range_props = '''                finalized={scenarioState.finalized}\n                onExecute={executeRangeCommand}\n              />\n'''
+          if 'isExecutionCollected=' not in app:
+              if range_props not in app:
+                  raise SystemExit('Range render props marker missing')
+              app = app.replace(
+                  range_props,
+                  '''                finalized={scenarioState.finalized}\n                onExecute={executeRangeCommand}\n                isExecutionCollected={(invocationId) =>\n                  rangeEvidenceEvents.some(\n                    (event) =>\n                      event.id === `${invocationId}-evidence`,\n                  )\n                }\n                onCollectExecution={collectRangeExecution}\n              />\n''',
+                  1,
+              )
+
+          app = app.replace(
+              '              events={scenarioState.events}\n',
+              '              events={canonicalEvents}\n',
+              1,
+          )
+
+          path.write_text(app)
+          PY
+
+      - name: Commit canonical Range wiring
+        run: |
+          if git diff --quiet; then
+            echo "No canonical Range wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx
+          git commit -m "feat: connect Range to canonical incident history"
+          git push origin HEAD:feat/range-canonical-evidence
