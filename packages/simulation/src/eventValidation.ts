@@ -309,6 +309,24 @@ export function validateSimulationEvent(
 
       return;
 
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
+      requireEntity(
+        world.devices,
+        event.payload.deviceId,
+        "Device",
+      );
+
+      if (
+        event.payload.previousStartupMode ===
+        event.payload.startupMode
+      ) {
+        throw new Error(
+          `Range service ${event.payload.serviceName} startup-mode event must change mode.`,
+        );
+      }
+
+      return;
+
     case "HOST_EVIDENCE_COLLECTED":
       requireEntity(
         world.devices,
