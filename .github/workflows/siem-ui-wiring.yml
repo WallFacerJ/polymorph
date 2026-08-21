@@ -1,0 +1,106 @@
+name: Wire deep SIEM workspace
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/deep-siem-workspace'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/deep-siem-workspace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wire SIEM workspace into App
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/App.tsx')
+          text = path.read_text()
+
+          import_marker = '''import {
+            ScenarioControls,
+          } from "./ScenarioControls";
+          '''
+          import_replacement = import_marker + '''
+          import {
+            SiemWorkspace,
+          } from "./SiemWorkspace";
+          '''
+          if 'from "./SiemWorkspace"' not in text:
+              if import_marker not in text:
+                  raise SystemExit('ScenarioControls import marker not found')
+              text = text.replace(import_marker, import_replacement, 1)
+
+          union_marker = '''type WorkspaceView =
+            | "alerts"
+            | "timeline"
+            | "endpoint"
+            | "identity"
+            | "case";'''
+          union_replacement = '''type WorkspaceView =
+            | "alerts"
+            | "timeline"
+            | "siem"
+            | "endpoint"
+            | "identity"
+            | "case";'''
+          if '| "siem"' not in text:
+              if union_marker not in text:
+                  raise SystemExit('WorkspaceView marker not found')
+              text = text.replace(union_marker, union_replacement, 1)
+
+          nav_marker = '''  { id: "alerts", label: "Alerts" },
+            { id: "timeline", label: "Investigation" },
+            { id: "endpoint", label: "Endpoint" },'''
+          nav_replacement = '''  { id: "alerts", label: "Alerts" },
+            { id: "timeline", label: "Investigation" },
+            { id: "siem", label: "SIEM Search" },
+            { id: "endpoint", label: "Endpoint" },'''
+          if '{ id: "siem", label: "SIEM Search" }' not in text:
+              if nav_marker not in text:
+                  raise SystemExit('nav marker not found')
+              text = text.replace(nav_marker, nav_replacement, 1)
+
+          timeline_marker = '''        {activeView === "timeline" && (
+                    <section className="workspace-section">'''
+          siem_block = '''        {activeView === "siem" && (
+                    <section className="workspace-section siem-section">
+                      <SiemWorkspace
+                        records={projections.siem.events}
+                        finalized={scenarioState.finalized}
+                        isCollected={isEvidenceCollected}
+                        onCollect={collectEvidence}
+                        onOpenCase={() => setActiveView("case")}
+                      />
+                    </section>
+                  )}
+
+          '''
+          if 'className="workspace-section siem-section"' not in text:
+              if timeline_marker not in text:
+                  raise SystemExit('timeline render marker not found')
+              text = text.replace(timeline_marker, siem_block + timeline_marker, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Commit wiring
+        run: |
+          if git diff --quiet; then
+            echo "No wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx
+          git commit -m "feat: wire SIEM search workspace"
+          git push origin HEAD:feat/deep-siem-workspace
