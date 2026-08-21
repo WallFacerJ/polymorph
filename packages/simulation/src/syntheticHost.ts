@@ -29,7 +29,6 @@ export type SyntheticHostCapability =
   | "read:configuration"
   | "read:logs"
   | "read:network"
-  | "read:history"
   | "manage:services"
   | "terminate:process"
   | "quarantine:file";
@@ -322,7 +321,6 @@ const ALL_CAPABILITIES:
     "read:configuration",
     "read:logs",
     "read:network",
-    "read:history",
     "manage:services",
     "terminate:process",
     "quarantine:file",
@@ -1175,11 +1173,6 @@ export function executeSyntheticHostCommand(
     }
 
     case "list_activity": {
-      requireCapability(
-        state,
-        "read:history",
-      );
-
       const hasKind =
         command.objectKind !== undefined;
       const hasId =
