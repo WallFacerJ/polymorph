@@ -447,7 +447,7 @@
         }
       },
       {
-        "id": "noise-process-fin-wsmprovhost",
+        "id": "event-fin-wsmprovhost-7200",
         "type": "PROCESS_STARTED",
         "timestamp": "2026-08-20T14:56:00Z",
         "source": "edr",
@@ -462,7 +462,7 @@
         }
       },
       {
-        "id": "noise-process-fin-admin-powershell",
+        "id": "event-fin-powershell-7300",
         "type": "PROCESS_STARTED",
         "timestamp": "2026-08-20T14:56:02Z",
         "source": "edr",
@@ -478,7 +478,7 @@
         }
       },
       {
-        "id": "noise-file-fin-backup-health",
+        "id": "event-fin-backup-health-executed",
         "type": "FILE_ACCESSED",
         "timestamp": "2026-08-20T14:56:03Z",
         "source": "edr",
@@ -492,7 +492,7 @@
         }
       },
       {
-        "id": "noise-network-fin-admin-health",
+        "id": "event-fin-admin-health-network",
         "type": "NETWORK_CONNECTION",
         "timestamp": "2026-08-20T14:56:05Z",
         "source": "edr",
@@ -596,7 +596,7 @@
         }
       },
       {
-        "id": "noise-process-fin-browser",
+        "id": "event-fin-browser-4520",
         "type": "PROCESS_STARTED",
         "timestamp": "2026-08-20T14:59:50Z",
         "source": "edr",
