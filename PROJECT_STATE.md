@@ -16,9 +16,11 @@ The core Phase 1 professional-tool reset is implemented enough to move forward. 
 
 Stage 2A now has a coherent cross-product loop. Deterministic synthetic-host state is attached to canonical Fabric devices and authored in scenario JSON; analysts can enter the host through Range, inspect or mutate capability-gated state, acquire immutable typed investigation artifacts from read-only host observations, and have material host actions and acquired evidence appear in the same canonical event history consumed by SIEM, EDR response history, the incident timeline, and Case. Process containment also closes process-owned synthetic network state deterministically.
 
-Structured Range acquisition is now an explicit domain boundary rather than saved terminal text. File, process, service, identity, configuration, log, and network acquisitions preserve deterministic source snapshots; file acquisitions retain authored SHA-256 values where present; provenance records the device, source invocation, acquisition method/time, source reference, related entities/indicators, and explicit integrity status. Canonical evidence events embed the acquired artifact and Case exposes its provenance. Event validation rejects inconsistent embedded provenance.
+Structured Range acquisition is an explicit domain boundary rather than saved terminal text. File, process, service, identity, configuration, log, and network acquisitions preserve deterministic source snapshots; file acquisitions retain authored SHA-256 values where present; provenance records the device, source invocation, acquisition method/time, source reference, related entities/indicators, and explicit integrity status. Canonical evidence events embed the acquired artifact and Case exposes its provenance. Event validation rejects inconsistent embedded provenance.
 
-The next Range milestone is no longer basic event plumbing or evidence capture. Stage 2A should deepen host relationships, lifecycle semantics, artifact history, and investigative ambiguity enough to prove the higher-level Range contract, then Stage 2B can add isolated container-backed assets only where real operating-system/service behavior creates material investigative value.
+Synthetic hosts now also expose an explicit relationship layer. Process ancestry, account ownership, and process-owned network objects are derived only from authoritative IDs already present in host state. Process-to-file and service/process-to-configuration relationships are declaratively authored and endpoint-validated. Range exposes relationship-aware process investigation and safe pivots, acquired artifacts retain their source neighborhood, and Case derives artifact-to-artifact lineage from shared source objects. Live containment can mutate process/network state without rewriting previously acquired historical lineage.
+
+The next Stage 2A milestone is no longer basic event plumbing, evidence capture, or first-order host graphing. It should increase host-side ambiguity, lifecycle depth, response operations, and acquisition/history semantics enough to prove the higher-level Range contract. Stage 2B can then add isolated container-backed assets where real operating-system/service behavior creates material investigative value.
 
 Residual Phase 1 work such as professional-mode objective/score presentation and further response-workflow polish remains valid, but it should not block the Range foundation.
 
@@ -82,6 +84,10 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - typed Range acquisition artifacts for file, process, service, identity, configuration, log, and network evidence
 - deterministic artifact-first bridge from read-only host results to canonical Case-compatible evidence events
 - provenance-coherence validation for embedded Range artifacts and evidence metadata
+- typed synthetic-host relationship graph combining explicit authored facts with deterministic ID-backed relationships
+- relationship endpoint/duplicate validation in scenario compilation and core scenario validation
+- relationship-aware process/service investigation helpers
+- immutable artifact source refs and relationship snapshots used for deterministic Case artifact lineage
 
 ### Declarative scenario runtime
 
@@ -89,6 +95,7 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - semantic scenario compiler
 - author-friendly world seeds compiled into canonical world state
 - optional declarative synthetic hosts validated against canonical Fabric device IDs
+- optional declarative synthetic-host process/file/service/configuration relationships with strict endpoint validation
 - ordered opening event history
 - ordered deterministic response actions
 - investigation focus metadata
@@ -96,7 +103,7 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - deterministic active/finalized outcome evaluation
 - deterministic scoring and response-quality penalties
 - optional ground-truth incident metadata
-- semantic validation of response actions, objectives, ground-truth references, and synthetic-host attachments
+- semantic validation of response actions, objectives, ground-truth references, synthetic-host attachments, and host relationship graphs
 
 ### Professional investigation surface
 
@@ -104,8 +111,8 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - SIEM workspace with deterministic search/query, facets, time controls, raw event detail, saved searches, exact pivots, and canonical Range host activity
 - EDR workspace with endpoint inventory, process trees, file/network context, endpoint history, Case/SIEM pivots, endpoint-scoped response operations, Range pivots for authored hosts, and Range response history
 - Identity workspace with account inventory, provider/status, roles, authentication provenance, sessions, access history, Case/SIEM pivots, and identity-scoped containment
-- Case incident-command workspace with evidence provenance, deterministic indicators/entities, hypotheses, tasks/owners/status, incident phase, findings, response-decision history, source-tool pivots, generated incident reporting, and explicit Range artifact provenance/integrity presentation
-- Range synthetic-host workspace with a fixed safe command vocabulary compiled into structured host commands, deterministic command/audit history, live host inspection, validated process/service/file mutations, professional artifact acquisition into Case, immutable acquisition state, and exact reset
+- Case incident-command workspace with evidence provenance, deterministic indicators/entities, hypotheses, tasks/owners/status, incident phase, findings, response-decision history, source-tool pivots, generated incident reporting, explicit Range artifact provenance/integrity, source refs, and artifact-to-artifact lineage
+- Range synthetic-host workspace with a fixed safe command vocabulary compiled into structured host commands, deterministic command/audit history, live host inspection, relationship-aware process context, safe staged pivots, validated process/service/file mutations, professional artifact acquisition into Case, immutable acquisition state, and exact reset
 - evidence collection by shared event ID across tools
 - explicit finalization, deterministic outcome/score, and finalized read-only investigation state
 - instructor ground-truth review
@@ -152,14 +159,22 @@ Implemented:
 14. process termination deterministically closes process-owned synthetic connections/listeners;
 15. reset removes acquired artifacts/evidence by reconstructing authored state, and finalized runs cannot acquire new artifacts;
 16. runtime and browser coverage exercises host inspection, safe-command rejection, file/network acquisition, provenance/integrity, cross-tool propagation, mutation, finalization, and reset;
-17. canonical event validation rejects tampered embedded artifact provenance.
+17. canonical event validation rejects tampered embedded artifact provenance;
+18. synthetic-host relationships combine ID-derived parent/account/network ownership with explicit authored process/file/service/configuration facts;
+19. invalid relationship endpoints and duplicate relationship IDs fail scenario validation before analyst use;
+20. the shipped Finance host authors Word-to-document, PowerShell-to-staged-script, BackupAgent-startup, and Telemetry-policy relationships without inventing unsupported service-process causality;
+21. Range process context exposes relationship facts and stages only commands from the controlled vocabulary;
+22. acquired artifacts preserve source-object refs and relationship IDs so Case can connect independently acquired evidence through shared lineage;
+23. Case renders shared-source artifact lineage separately from acquisition provenance;
+24. containment mutates live process/network state while acquired artifact lineage remains immutable;
+25. unit and browser coverage exercise relationship pivots, artifact lineage, containment preservation, validation, and reset.
 
 ## Immediate implementation priorities
 
-1. Add richer synthetic-host relationships and lifecycle semantics where they improve investigation: process-owned files/connections, services mapped to processes, persistence/config relationships, and acquisition history.
-2. Increase the default incident's host-side ambiguity and investigation surface without turning it into scripted command-following: more normal processes, files, logs, connections, and plausible competing explanations.
+1. Increase the default incident's host-side ambiguity and investigation surface without turning it into scripted command-following: more normal processes, files, logs, connections, and plausible competing explanations.
+2. Deepen lifecycle semantics and artifact history where they materially improve investigation: process/file activity history, service lifecycle, persistence changes, and time-aware acquisition context.
 3. Make more incident response happen in host/system context and ensure every material change remains explainable through canonical history.
-4. Add artifact-to-entity and artifact-to-artifact relationship projection so Case can reason over acquired evidence as a graph rather than a flat ledger.
+4. Add richer artifact/entity graph workflows in Case, including analyst-friendly pivots, filtering, and eventual graph query/navigation without turning source facts into conclusions.
 5. Define the Stage 2B runtime-provider contract so synthetic and container-backed assets can expose a compatible higher-level Range investigation interface.
 6. Introduce one ephemeral container-backed Linux/service asset only after isolation, resource/time limits, teardown, and telemetry instrumentation are explicit and testable.
 7. Add microVM/full-VM fidelity later for Windows/AD/appliance scenarios that cannot be represented credibly with lower-fidelity assets.
@@ -188,7 +203,7 @@ Earlier project guidance intentionally deferred heavy infrastructure until a dem
 
 Therefore:
 
-- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser and canonical-evidence implementation;
+- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser, evidence, relationship, and lineage implementation;
 - container-backed and eventually VM-backed range infrastructure is explicitly in scope;
 - a server runtime and database are explicitly in scope;
 - orchestration, queues, caches, search engines, and service decomposition may be introduced when measured scale/reliability requirements justify them;
