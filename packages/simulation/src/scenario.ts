@@ -37,6 +37,10 @@ import type {
 } from "./syntheticHost";
 
 import {
+  validateSyntheticHostRelationships,
+} from "./syntheticHostRelationship";
+
+import {
   validateWorldState,
 } from "./worldValidation";
 
@@ -154,6 +158,43 @@ function requireValidInitialWorld(
   throw new Error(
     `Scenario ${scenario.id} has an invalid initial world: ${issues[0].message}`,
   );
+}
+
+function requireValidSyntheticHostRelationships(
+  scenario: ScenarioDefinition,
+): void {
+  const hostByDeviceId = new Map(
+    (scenario.syntheticHosts ?? []).map(
+      (host) => [host.deviceId, host],
+    ),
+  );
+  const seenDeviceIds = new Set<string>();
+
+  for (const relationshipSet of
+    scenario.syntheticHostRelationships ?? []) {
+    if (seenDeviceIds.has(relationshipSet.deviceId)) {
+      throw new Error(
+        `Scenario ${scenario.id} defines duplicate synthetic-host relationship set for device: ${relationshipSet.deviceId}`,
+      );
+    }
+
+    seenDeviceIds.add(relationshipSet.deviceId);
+
+    const host = hostByDeviceId.get(
+      relationshipSet.deviceId,
+    );
+
+    if (!host) {
+      throw new Error(
+        `Scenario ${scenario.id} defines synthetic-host relationships for missing device host: ${relationshipSet.deviceId}`,
+      );
+    }
+
+    validateSyntheticHostRelationships(
+      host,
+      relationshipSet.relationships,
+    );
+  }
 }
 
 function requireUniqueActionIds(
@@ -303,6 +344,7 @@ export function validateScenarioDefinition(
   scenario: ScenarioDefinition,
 ): void {
   requireValidInitialWorld(scenario);
+  requireValidSyntheticHostRelationships(scenario);
   requireUniqueActionIds(scenario);
 
   const openingWorld =

@@ -17,6 +17,18 @@ import type {
   SyntheticHostService,
 } from "./syntheticHost";
 
+import {
+  getSyntheticHostRelationshipsForRefs,
+  syntheticHostObjectRefKey,
+} from "./syntheticHostRelationship";
+
+import type {
+  SyntheticHostAuthoredRelationship,
+  SyntheticHostObjectKind,
+  SyntheticHostObjectRef,
+  SyntheticHostResolvedRelationship,
+} from "./syntheticHostRelationship";
+
 export type RangeArtifactKind =
   | "file"
   | "process"
@@ -49,6 +61,9 @@ export interface RangeArtifactBase {
   acquiredAt: SimulationTimestamp;
   acquisitionMethod: RangeArtifactAcquisitionMethod;
   sourceReference: string;
+  sourceRefs: readonly SyntheticHostObjectRef[];
+  sourceRelationships:
+    readonly SyntheticHostResolvedRelationship[];
   relatedEntityIds: readonly EntityId[];
   indicatorIps: readonly string[];
   integrity: RangeArtifactIntegrity;
@@ -149,6 +164,14 @@ export interface CreateRangeArtifactInput {
   deviceId: EntityId;
   invocation: SyntheticHostCommandInvocation;
   execution: SyntheticHostCommandExecution;
+  relationships?:
+    readonly SyntheticHostAuthoredRelationship[];
+}
+
+interface ArtifactLineage {
+  sourceRefs: readonly SyntheticHostObjectRef[];
+  sourceRelationships:
+    readonly SyntheticHostResolvedRelationship[];
 }
 
 function uniqueStrings(
@@ -161,6 +184,62 @@ function uniqueStrings(
       ),
     ),
   ];
+}
+
+function objectRef(
+  kind: SyntheticHostObjectKind,
+  id: string | number,
+): SyntheticHostObjectRef {
+  return {
+    kind,
+    id: String(id),
+  };
+}
+
+function uniqueObjectRefs(
+  refs: readonly SyntheticHostObjectRef[],
+): readonly SyntheticHostObjectRef[] {
+  const seen = new Set<string>();
+  const result: SyntheticHostObjectRef[] = [];
+
+  for (const ref of refs) {
+    const key = syntheticHostObjectRefKey(ref);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push({ ...ref });
+  }
+
+  return result;
+}
+
+function artifactLineage(
+  input: CreateRangeArtifactInput,
+  primaryRefs: readonly SyntheticHostObjectRef[],
+): ArtifactLineage {
+  const sourceRelationships =
+    getSyntheticHostRelationshipsForRefs(
+      input.execution.state,
+      input.relationships ?? [],
+      primaryRefs,
+    );
+
+  return {
+    sourceRefs: uniqueObjectRefs([
+      ...primaryRefs,
+      ...sourceRelationships.flatMap(
+        (relationship) => [
+          relationship.source,
+          relationship.target,
+        ],
+      ),
+    ]),
+    sourceRelationships:
+      structuredClone(sourceRelationships),
+  };
 }
 
 function unavailableIntegrity(): RangeArtifactIntegrity {
@@ -186,6 +265,7 @@ function baseArtifact(
   input: CreateRangeArtifactInput,
   kind: RangeArtifactKind,
   sourceReference: string,
+  primaryRefs: readonly SyntheticHostObjectRef[],
   relatedEntityIds: readonly EntityId[] = [
     input.deviceId,
   ],
@@ -199,6 +279,11 @@ function baseArtifact(
     );
   }
 
+  const lineage = artifactLineage(
+    input,
+    primaryRefs,
+  );
+
   return {
     id: input.id,
     kind,
@@ -208,6 +293,9 @@ function baseArtifact(
     acquiredAt: input.acquiredAt,
     acquisitionMethod: "controlled_range_command",
     sourceReference,
+    sourceRefs: lineage.sourceRefs,
+    sourceRelationships:
+      lineage.sourceRelationships,
     relatedEntityIds: [...relatedEntityIds],
     indicatorIps: [...indicatorIps],
     integrity,
@@ -226,6 +314,7 @@ export function createRangeArtifact(
           input,
           "file",
           result.file.path,
+          [objectRef("file", result.file.path)],
           [input.deviceId],
           [],
           fileIntegrity(result.file),
@@ -245,6 +334,9 @@ export function createRangeArtifact(
           input.invocation.command.type === "list_files"
             ? `filesystem:${input.invocation.command.prefix ?? "/"}`
             : "filesystem:/",
+          result.files.map(
+            (file) => objectRef("file", file.path),
+          ),
         ),
         kind: "file",
         snapshot: {
@@ -259,6 +351,7 @@ export function createRangeArtifact(
           input,
           "process",
           `process:${result.process.pid}`,
+          [objectRef("process", result.process.pid)],
           uniqueStrings([
             input.deviceId,
             result.process.accountId,
@@ -277,6 +370,10 @@ export function createRangeArtifact(
           input,
           "process",
           "process:inventory",
+          result.processes.map(
+            (process) =>
+              objectRef("process", process.pid),
+          ),
           uniqueStrings([
             input.deviceId,
             ...result.processes.map(
@@ -297,6 +394,7 @@ export function createRangeArtifact(
           input,
           "service",
           `service:${result.service.name}`,
+          [objectRef("service", result.service.name)],
         ),
         kind: "service",
         snapshot: {
@@ -311,6 +409,10 @@ export function createRangeArtifact(
           input,
           "service",
           "service:inventory",
+          result.services.map(
+            (service) =>
+              objectRef("service", service.name),
+          ),
         ),
         kind: "service",
         snapshot: {
@@ -325,6 +427,10 @@ export function createRangeArtifact(
           input,
           "identity",
           "identity:local-users",
+          result.users.map(
+            (user) =>
+              objectRef("local_user", user.username),
+          ),
         ),
         kind: "identity",
         snapshot: {
@@ -339,6 +445,10 @@ export function createRangeArtifact(
           input,
           "identity",
           "identity:local-groups",
+          result.groups.map(
+            (group) =>
+              objectRef("local_group", group.name),
+          ),
         ),
         kind: "identity",
         snapshot: {
@@ -353,6 +463,7 @@ export function createRangeArtifact(
           input,
           "configuration",
           `configuration:${result.key}`,
+          [objectRef("configuration", result.key)],
         ),
         kind: "configuration",
         snapshot: {
@@ -372,6 +483,9 @@ export function createRangeArtifact(
           input,
           "log",
           `logs:${channel ?? "all"}`,
+          result.logs.map(
+            (log) => objectRef("log", log.id),
+          ),
         ),
         kind: "log",
         snapshot: {
@@ -393,12 +507,23 @@ export function createRangeArtifact(
           (listener) => listener.address,
         ),
       ]);
+      const sourceRefs = [
+        ...result.network.connections.map(
+          (connection) =>
+            objectRef("connection", connection.id),
+        ),
+        ...result.network.listeners.map(
+          (listener) =>
+            objectRef("listener", listener.id),
+        ),
+      ];
 
       return {
         ...baseArtifact(
           input,
           "network",
           "network:state",
+          sourceRefs,
           [input.deviceId],
           indicatorIps,
         ),

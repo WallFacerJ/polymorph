@@ -7,6 +7,7 @@ import {
 import {
   addAnalystHypothesis,
   addAnalystTask,
+  buildCaseArtifactLineage,
   buildCaseDecisionRecords,
   buildCaseEvidenceRecords,
   buildIncidentCaseReport,
@@ -108,6 +109,11 @@ export function CaseWorkspace({
         events,
       ),
     [state, events],
+  );
+
+  const artifactLineage = useMemo(
+    () => buildCaseArtifactLineage(evidence),
+    [evidence],
   );
 
   const decisions = useMemo(
@@ -437,6 +443,16 @@ export function CaseWorkspace({
                             ? `${record.artifact.integrity.algorithm} ${record.artifact.integrity.value}`
                             : "unavailable (source did not provide integrity)"}
                         </span>
+                        {record.artifact.sourceRefs.map(
+                          (ref) => (
+                            <span
+                              className="case-source-ref-chip"
+                              key={`${ref.kind}-${ref.id}`}
+                            >
+                              lineage: {ref.kind}:{ref.id}
+                            </span>
+                          ),
+                        )}
                       </div>
                     )}
 
@@ -756,6 +772,43 @@ export function CaseWorkspace({
                   <code key={`${indicator.kind}-${indicator.value}`}>
                     {indicator.kind}: {indicator.value}
                   </code>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section
+            className="case-command-card"
+            aria-label="Case artifact lineage"
+          >
+            <p className="eyebrow">Artifact lineage</p>
+            <h4>Shared source graph</h4>
+            {artifactLineage.length === 0 ? (
+              <p className="case-muted">
+                Acquire multiple related Range artifacts to reveal shared source lineage.
+              </p>
+            ) : (
+              <div className="case-lineage-list">
+                {artifactLineage.map((link) => (
+                  <article
+                    key={`${link.leftArtifactId}-${link.rightArtifactId}`}
+                  >
+                    <strong>
+                      {link.leftArtifactId} ↔ {link.rightArtifactId}
+                    </strong>
+                    <small>Shared source facts</small>
+                    <div className="case-lineage-ref-list">
+                      {link.sharedSourceRefs.map(
+                        (ref) => (
+                          <code
+                            key={`${ref.kind}-${ref.id}`}
+                          >
+                            {ref.kind}:{ref.id}
+                          </code>
+                        ),
+                      )}
+                    </div>
+                  </article>
                 ))}
               </div>
             )}

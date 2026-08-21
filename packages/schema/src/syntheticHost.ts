@@ -128,6 +128,53 @@ export const syntheticHostConnectionSchema = z.object({
   processId: pid.optional(),
 }).strict();
 
+const syntheticHostConfigurationPurposeSchema = z.enum([
+  "persistence",
+  "execution",
+  "policy",
+  "startup",
+  "other",
+]);
+
+export const syntheticHostRelationshipSchema =
+  z.discriminatedUnion("type", [
+    z.object({
+      id: nonEmptyString,
+      type: z.literal("process_file"),
+      processId: pid,
+      filePath: virtualPath,
+      operation: z.enum([
+        "read",
+        "write",
+        "create",
+        "delete",
+        "execute",
+      ]),
+    }).strict(),
+    z.object({
+      id: nonEmptyString,
+      type: z.literal("service_process"),
+      serviceName: nonEmptyString,
+      processId: pid,
+    }).strict(),
+    z.object({
+      id: nonEmptyString,
+      type: z.literal("process_configuration"),
+      processId: pid,
+      key: nonEmptyString,
+      purpose:
+        syntheticHostConfigurationPurposeSchema,
+    }).strict(),
+    z.object({
+      id: nonEmptyString,
+      type: z.literal("service_configuration"),
+      serviceName: nonEmptyString,
+      key: nonEmptyString,
+      purpose:
+        syntheticHostConfigurationPurposeSchema,
+    }).strict(),
+  ]);
+
 export const syntheticHostScenarioSchema = z.object({
   deviceId: nonEmptyString,
   capabilities:
@@ -167,6 +214,9 @@ export const syntheticHostScenarioSchema = z.object({
     listeners: [],
     connections: [],
   }),
+  relationships:
+    z.array(syntheticHostRelationshipSchema)
+      .default([]),
 }).strict();
 
 export type SyntheticHostScenarioSpec =

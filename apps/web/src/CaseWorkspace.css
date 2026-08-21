@@ -252,7 +252,9 @@
 
 .case-evidence-context code,
 .case-indicator-chip,
-.case-indicator-list code {
+.case-source-ref-chip,
+.case-indicator-list code,
+.case-lineage-ref-list code {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 3px 6px;
@@ -266,6 +268,12 @@
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
   background: color-mix(in srgb, var(--accent) 9%, var(--pm-panel-subtle, #071522));
   color: color-mix(in srgb, var(--accent) 82%, white 18%);
+}
+
+.case-source-ref-chip {
+  border-color: color-mix(in srgb, var(--pm-range, #75e6d1) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--pm-range, #75e6d1) 7%, var(--pm-panel-subtle, #071522));
+  color: color-mix(in srgb, var(--pm-range, #75e6d1) 78%, white 22%);
 }
 
 .case-evidence-actions {
@@ -396,6 +404,42 @@
   gap: 6px;
 }
 
+.case-lineage-list {
+  display: grid;
+  gap: 8px;
+}
+
+.case-lineage-list article {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--pm-range, #75e6d1) 30%, var(--border-color));
+  border-radius: var(--pm-radius-control, 8px);
+  background: color-mix(in srgb, var(--pm-range, #75e6d1) 5%, var(--pm-panel-solid, #0b1a2a));
+}
+
+.case-lineage-list strong {
+  overflow-wrap: anywhere;
+  color: var(--pm-text-strong, #f7fbff);
+  font-size: 0.75rem;
+}
+
+.case-lineage-list small {
+  color: var(--muted-text);
+  font-size: 0.68rem;
+}
+
+.case-lineage-ref-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.case-lineage-ref-list code {
+  border-color: color-mix(in srgb, var(--pm-range, #75e6d1) 38%, var(--border-color));
+  color: color-mix(in srgb, var(--pm-range, #75e6d1) 80%, white 20%);
+}
+
 .case-decision-list article,
 .case-finding-list article {
   border-top: 1px solid var(--border-color);
@@ -478,6 +522,7 @@
   .finding-form,
   .case-artifact-card,
   .case-command-card,
+  .case-lineage-list article,
   .case-report-grid div
 ) {
   border-width: 2px;

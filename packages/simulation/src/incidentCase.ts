@@ -28,6 +28,14 @@ import {
   siemProjection,
 } from "./siemProjection";
 
+import {
+  syntheticHostObjectRefKey,
+} from "./syntheticHostRelationship";
+
+import type {
+  SyntheticHostObjectRef,
+} from "./syntheticHostRelationship";
+
 export type CaseSourceTool =
   | "identity"
   | "edr"
@@ -46,6 +54,15 @@ export interface CaseArtifactProvenance {
   acquiredAt: string;
   sourceReference: string;
   integrity: HostEvidenceIntegrity;
+  sourceRefs: readonly SyntheticHostObjectRef[];
+  sourceRelationshipIds: readonly string[];
+}
+
+export interface CaseArtifactLineageLink {
+  leftArtifactId: EntityId;
+  rightArtifactId: EntityId;
+  sharedSourceRefs:
+    readonly SyntheticHostObjectRef[];
 }
 
 export interface CaseEvidenceRecord {
@@ -279,6 +296,7 @@ function getArtifactProvenance(
 
   const {
     artifactId,
+    artifact,
     sourceInvocationId,
     acquisitionMethod,
     acquiredAt,
@@ -304,6 +322,12 @@ function getArtifactProvenance(
     acquiredAt,
     sourceReference,
     integrity: structuredClone(integrity),
+    sourceRefs:
+      structuredClone(artifact?.sourceRefs ?? []),
+    sourceRelationshipIds:
+      artifact?.sourceRelationships.map(
+        (relationship) => relationship.id,
+      ) ?? [],
   };
 }
 
@@ -356,6 +380,60 @@ export function buildCaseEvidenceRecords(
       };
     },
   );
+}
+
+export function buildCaseArtifactLineage(
+  evidence: readonly CaseEvidenceRecord[],
+): readonly CaseArtifactLineageLink[] {
+  const artifacts = evidence.filter(
+    (record): record is CaseEvidenceRecord & {
+      artifact: CaseArtifactProvenance;
+    } => record.artifact !== undefined,
+  );
+  const links: CaseArtifactLineageLink[] = [];
+
+  for (
+    let leftIndex = 0;
+    leftIndex < artifacts.length;
+    leftIndex += 1
+  ) {
+    const left = artifacts[leftIndex];
+    const leftKeys = new Set(
+      left.artifact.sourceRefs.map(
+        syntheticHostObjectRefKey,
+      ),
+    );
+
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < artifacts.length;
+      rightIndex += 1
+    ) {
+      const right = artifacts[rightIndex];
+      const sharedSourceRefs =
+        right.artifact.sourceRefs.filter(
+          (ref) =>
+            leftKeys.has(
+              syntheticHostObjectRefKey(ref),
+            ),
+        );
+
+      if (sharedSourceRefs.length === 0) {
+        continue;
+      }
+
+      links.push({
+        leftArtifactId:
+          left.artifact.artifactId,
+        rightArtifactId:
+          right.artifact.artifactId,
+        sharedSourceRefs:
+          structuredClone(sharedSourceRefs),
+      });
+    }
+  }
+
+  return links;
 }
 
 export function buildCaseDecisionRecords(

@@ -23,6 +23,8 @@ export * from "./siemQuery";
 export * from "./analystCase";
 export * from "./incidentCase";
 export * from "./syntheticHost";
+export * from "./syntheticHostRelationship";
+export * from "./syntheticHostInvestigation";
 export * from "./rangeArtifact";
 export * from "./rangeArtifactEvent";
 export * from "./rangeEventBridge";

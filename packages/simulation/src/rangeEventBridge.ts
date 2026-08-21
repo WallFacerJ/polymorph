@@ -31,6 +31,10 @@ import type {
   SyntheticHostState,
 } from "./syntheticHost";
 
+import type {
+  SyntheticHostAuthoredRelationship,
+} from "./syntheticHostRelationship";
+
 export interface RangeCanonicalReplayResult
   extends SyntheticHostReplayResult {
   events: readonly SimulationEvent[];
@@ -43,6 +47,8 @@ export interface RangeEvidenceEventInput {
   actorId?: EntityId;
   invocation: SyntheticHostCommandInvocation;
   execution: SyntheticHostCommandExecution;
+  relationships?:
+    readonly SyntheticHostAuthoredRelationship[];
 }
 
 function closeProcessOwnedNetwork(
@@ -289,6 +295,7 @@ export function createRangeEvidenceEvent(
     deviceId: input.deviceId,
     invocation: input.invocation,
     execution: input.execution,
+    relationships: input.relationships,
   });
 
   return createRangeArtifactEvidenceEvent({

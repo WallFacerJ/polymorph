@@ -4,6 +4,9 @@ import {
   type Page,
 } from "@playwright/test";
 
+const suspiciousScript =
+  "/Users/smartinez/AppData/Local/Temp/finance-update.ps1";
+
 async function runRangeCommand(
   page: Page,
   command: string,
@@ -30,6 +33,20 @@ async function openRange(
   return page.getByRole(
     "region",
     { name: "Range synthetic host workspace" },
+  );
+}
+
+async function openCase(
+  page: Page,
+) {
+  await page.locator(".workspace-nav").getByRole(
+    "button",
+    { name: /^Case/ },
+  ).click();
+
+  return page.getByRole(
+    "region",
+    { name: "Case incident command workspace" },
   );
 }
 
@@ -82,7 +99,7 @@ test("Endpoint pivots into a coherent synthetic host and supports controlled inv
 
   await runRangeCommand(
     page,
-    "cat /Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+    `cat ${suspiciousScript}`,
   );
   await expect(
     range.locator(".range-terminal-output"),
@@ -159,15 +176,7 @@ test("Range network acquisition appears in Case with artifact provenance", async
     "artifact range-command-1-artifact · immutable acquisition snapshot",
   );
 
-  await page.locator(".workspace-nav").getByRole(
-    "button",
-    { name: /^Case/ },
-  ).click();
-
-  const caseWorkspace = page.getByRole(
-    "region",
-    { name: "Case incident command workspace" },
-  );
+  const caseWorkspace = await openCase(page);
   const evidenceLedger = page.getByRole(
     "region",
     { name: "Case evidence ledger" },
@@ -195,6 +204,9 @@ test("Range network acquisition appears in Case with artifact provenance", async
   );
   await expect(provenance).toContainText(
     "integrity: unavailable (source did not provide integrity)",
+  );
+  await expect(provenance).toContainText(
+    "lineage: process:8420",
   );
 
   await page.getByRole(
@@ -224,7 +236,7 @@ test("Range file acquisition preserves authored SHA-256 provenance in Case", asy
 
   await runRangeCommand(
     page,
-    "cat /Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+    `cat ${suspiciousScript}`,
   );
   await range.getByRole(
     "button",
@@ -235,10 +247,7 @@ test("Range file acquisition preserves authored SHA-256 provenance in Case", asy
     "Artifact acquired",
   );
 
-  await page.locator(".workspace-nav").getByRole(
-    "button",
-    { name: /^Case/ },
-  ).click();
+  await openCase(page);
 
   const provenance = page.getByLabel(
     "Range artifact provenance",
@@ -248,10 +257,125 @@ test("Range file acquisition preserves authored SHA-256 provenance in Case", asy
     "artifact: range-command-1-artifact",
   );
   await expect(provenance).toContainText(
-    "source: /Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+    `source: ${suspiciousScript}`,
   );
   await expect(provenance).toContainText(
     "integrity: sha256 9e6c9d2f14d2178fd2f7fbf7712c610d53c67c84f2ed8086697245db4f73fa1b",
+  );
+  await expect(provenance).toContainText(
+    "lineage: process:8420",
+  );
+});
+
+test("Range relationship pivots preserve cross-artifact lineage through containment", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const range = await openRange(page);
+
+  const powershell = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: "powershell.exe" });
+
+  await powershell.getByRole(
+    "button",
+    { name: "Trace relationships" },
+  ).click();
+
+  const relationshipContext = page.getByRole(
+    "region",
+    { name: "Range relationship context" },
+  );
+
+  await expect(relationshipContext).toContainText(
+    "Process 8420",
+  );
+  await expect(relationshipContext).toContainText(
+    "6172",
+  );
+  await expect(relationshipContext).toContainText(
+    "account-smartinez",
+  );
+  await expect(relationshipContext).toContainText(
+    suspiciousScript,
+  );
+  await expect(relationshipContext).toContainText(
+    "range-connection-powershell",
+  );
+  await expect(relationshipContext).toContainText(
+    "rel-powershell-finance-update",
+  );
+
+  await relationshipContext.getByRole(
+    "button",
+    { name: `Stage cat ${suspiciousScript}` },
+  ).click();
+  await expect(
+    page.getByLabel("Range command"),
+  ).toHaveValue(`cat ${suspiciousScript}`);
+
+  await page.getByRole(
+    "button",
+    { name: "Run", exact: true },
+  ).click();
+  await range.getByRole(
+    "button",
+    { name: "Acquire artifact to Case" },
+  ).click();
+
+  await runRangeCommand(page, "net");
+  await range.getByRole(
+    "button",
+    { name: "Acquire artifact to Case" },
+  ).click();
+
+  await openCase(page);
+
+  const lineage = page.getByRole(
+    "region",
+    { name: "Case artifact lineage" },
+  );
+
+  await expect(lineage).toContainText(
+    "range-command-1-artifact",
+  );
+  await expect(lineage).toContainText(
+    "range-command-2-artifact",
+  );
+  await expect(lineage).toContainText(
+    "process:8420",
+  );
+
+  await openRange(page);
+  await runRangeCommand(page, "kill 8420");
+
+  const connection = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: "203.0.113.77:443" });
+
+  await expect(connection).toContainText("closed");
+
+  await openCase(page);
+  await expect(lineage).toContainText(
+    "process:8420",
+  );
+
+  await page.getByRole(
+    "button",
+    { name: "Reset scenario" },
+  ).click();
+  await page.locator(".workspace-nav").getByRole(
+    "button",
+    { name: "Case", exact: true },
+  ).click();
+
+  await expect(
+    page.getByRole(
+      "region",
+      { name: "Case artifact lineage" },
+    ),
+  ).toContainText(
+    "Acquire multiple related Range artifacts",
   );
 });
 
