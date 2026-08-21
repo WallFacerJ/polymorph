@@ -17,6 +17,7 @@ export * from "./identityProjection";
 export * from "./identityInvestigation";
 export * from "./edrProjection";
 export * from "./edrInvestigation";
+export * from "./edrHostActivityProjection";
 export * from "./siemProjection";
 export * from "./siemQuery";
 export * from "./analystCase";
