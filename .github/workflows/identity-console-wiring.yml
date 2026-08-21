@@ -1,0 +1,84 @@
+name: Wire deep Identity console
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/deep-identity-console'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/deep-identity-console
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Replace shallow Identity surface
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/App.tsx')
+          text = path.read_text()
+
+          if 'from "./IdentityWorkspace"' not in text:
+              marker = '} from "./EdrWorkspace";\n'
+              insertion = marker + '\nimport {\n  IdentityWorkspace,\n} from "./IdentityWorkspace";\n'
+              if marker not in text:
+                  raise SystemExit('EDR import marker not found')
+              text = text.replace(marker, insertion, 1)
+
+          login_start = text.find('  const loginActivity =\n')
+          response_start = text.find('  const responseActions =\n', login_start)
+          if login_start >= 0 and response_start >= 0:
+              text = text[:login_start] + text[response_start:]
+          elif login_start >= 0 or response_start < 0:
+              raise SystemExit('unexpected loginActivity boundaries')
+
+          identity_start = text.find('        {activeView === "identity" && (')
+          case_start = text.find('        {activeView === "case" && (', identity_start)
+          if identity_start < 0 or case_start < 0:
+              raise SystemExit('identity render boundaries not found')
+
+          block = '\n'.join([
+              '        {activeView === "identity" && (',
+              '          <section className="workspace-section identity-section">',
+              '            <IdentityWorkspace',
+              '              world={scenarioState.world}',
+              '              state={projections.identity}',
+              '              initialAccountId={context.accountId}',
+              '              actions={responseActions}',
+              '              performedActionIds={scenarioState.performedActionIds}',
+              '              finalized={scenarioState.finalized}',
+              '              isCollected={isEvidenceCollected}',
+              '              onCollect={collectEvidence}',
+              '              onPerformAction={performResponseAction}',
+              '              onSearchSiem={openSiem}',
+              '              onOpenCase={() => setActiveView("case")}',
+              '            />',
+              '          </section>',
+              '        )}',
+              '',
+              '',
+          ])
+
+          text = text[:identity_start] + block + text[case_start:]
+          path.write_text(text)
+          PY
+
+      - name: Commit Identity wiring
+        run: |
+          if git diff --quiet; then
+            echo "No Identity wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx
+          git commit -m "feat: wire deep identity investigation workflow"
+          git push origin HEAD:feat/deep-identity-console
