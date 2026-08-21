@@ -10,7 +10,7 @@ test("Identity distinguishes authentication provenance and pivots the same event
 
   await page.getByRole(
     "button",
-    { name: "Identity" },
+    { name: "Identity", exact: true },
   ).click();
 
   const workspace = page.getByRole(
@@ -68,7 +68,7 @@ test("Identity distinguishes authentication provenance and pivots the same event
 
   await page.getByRole(
     "button",
-    { name: "Identity" },
+    { name: "Identity", exact: true },
   ).click();
 
   const identityAgain = page.getByRole(
@@ -117,7 +117,7 @@ test("Identity performs session and account containment from the affected accoun
 
   await page.getByRole(
     "button",
-    { name: "Identity" },
+    { name: "Identity", exact: true },
   ).click();
 
   let workspace = page.getByRole(
@@ -141,7 +141,7 @@ test("Identity performs session and account containment from the affected accoun
 
   await page.getByRole(
     "button",
-    { name: "Identity" },
+    { name: "Identity", exact: true },
   ).click();
   workspace = page.getByRole(
     "region",
@@ -160,7 +160,7 @@ test("Identity performs session and account containment from the affected accoun
 
   await page.getByRole(
     "button",
-    { name: "Identity" },
+    { name: "Identity", exact: true },
   ).click();
   workspace = page.getByRole(
     "region",
