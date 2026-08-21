@@ -211,6 +211,34 @@ export function validateSimulationEvent(
 
       return;
 
+    case "HOST_PROCESS_TERMINATED":
+      requireEntity(
+        world.devices,
+        event.payload.deviceId,
+        "Device",
+      );
+
+      if (event.payload.accountId) {
+        requireEntity(
+          world.accounts,
+          event.payload.accountId,
+          "Account",
+        );
+      }
+
+      return;
+
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+    case "HOST_EVIDENCE_COLLECTED":
+      requireEntity(
+        world.devices,
+        event.payload.deviceId,
+        "Device",
+      );
+
+      return;
+
     case "ALERT_CREATED":
       if (
         event.payload.applicationId
