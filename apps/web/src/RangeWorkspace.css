@@ -44,7 +44,11 @@
 .range-stat-grid small,
 .range-inspector-row small,
 .range-inspector-row span,
-.range-audit-line {
+.range-audit-line,
+.range-relationship-empty,
+.range-relationship-heading span,
+.range-related-ref small,
+.range-relationship-row span {
   color: var(--muted-text);
 }
 
@@ -215,6 +219,95 @@
   grid-column: 1 / -1;
 }
 
+.range-inspector-row.relationship-selected {
+  margin: 0 -10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, #63d59b 45%, var(--border-color));
+  background: color-mix(in srgb, #63d59b 6%, var(--panel-bg));
+}
+
+.range-context-button {
+  justify-self: start;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--muted-text);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.range-inspector-row > .range-context-button {
+  grid-column: 1 / -1;
+}
+
+.range-context-button:hover,
+.range-context-button:focus-visible {
+  border-color: color-mix(in srgb, #63d59b 55%, var(--border-color));
+  color: var(--text-color);
+}
+
+.range-relationship-section {
+  gap: 12px;
+  background: color-mix(in srgb, var(--panel-bg) 94%, #071b12);
+}
+
+.range-relationship-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.range-relationship-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.range-relationship-heading span {
+  font-size: 0.72rem;
+}
+
+.range-related-ref-list,
+.range-relationship-list {
+  display: grid;
+  gap: 7px;
+}
+
+.range-related-ref {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  background: color-mix(in srgb, var(--page-bg) 58%, transparent);
+}
+
+.range-related-ref > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.range-related-ref code,
+.range-relationship-row code {
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+}
+
+.range-relationship-row {
+  display: grid;
+  gap: 3px;
+  padding-top: 7px;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+}
+
+.range-relationship-row span {
+  font-size: 0.74rem;
+}
+
 .range-state {
   align-self: start;
   padding: 2px 7px;
@@ -260,5 +353,9 @@
 
   .range-command-form {
     flex-direction: column;
+  }
+
+  .range-related-ref {
+    grid-template-columns: 1fr;
   }
 }
