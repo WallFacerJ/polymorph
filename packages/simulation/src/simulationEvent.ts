@@ -283,12 +283,12 @@ export type HostEvidenceIntegrity =
 export interface HostEvidenceCollectedPayload {
   deviceId: EntityId;
   evidenceKind: HostEvidenceKind;
-  artifactId: EntityId;
-  sourceInvocationId: string;
-  acquisitionMethod: HostEvidenceAcquisitionMethod;
-  acquiredAt: string;
-  sourceReference: string;
-  integrity: HostEvidenceIntegrity;
+  artifactId?: EntityId;
+  sourceInvocationId?: string;
+  acquisitionMethod?: HostEvidenceAcquisitionMethod;
+  acquiredAt?: string;
+  sourceReference?: string;
+  integrity?: HostEvidenceIntegrity;
   targetId: string;
   summary: string;
   relatedEntityIds: EntityId[];
