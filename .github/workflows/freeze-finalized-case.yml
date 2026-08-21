@@ -1,0 +1,95 @@
+name: Freeze finalized analyst case
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'feat/investigation-finalization'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/investigation-finalization
+
+      - name: Freeze post-finalization case mutations
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('apps/web/src/App.tsx')
+          text = path.read_text()
+          original = text
+
+          text = text.replace(
+              '  ) => {\n    if (!eventId) {\n      return;\n    }\n\n    setCaseError(null);',
+              '  ) => {\n    if (!eventId || scenarioState.finalized) {\n      return;\n    }\n\n    setCaseError(null);',
+              1,
+          )
+
+          marker = '''  const toggleFindingEvidence = (\n    eventId: string,\n  ) => {\n    setSelectedEvidenceIds((current) =>'''
+          replacement = '''  const toggleFindingEvidence = (\n    eventId: string,\n  ) => {\n    if (scenarioState.finalized) {\n      return;\n    }\n\n    setSelectedEvidenceIds((current) =>'''
+          if marker in text:
+              text = text.replace(marker, replacement, 1)
+
+          marker = '''  ) => {\n    event.preventDefault();\n\n    try {\n      const next = addAnalystFinding('''
+          replacement = '''  ) => {\n    event.preventDefault();\n\n    if (scenarioState.finalized) {\n      return;\n    }\n\n    try {\n      const next = addAnalystFinding('''
+          if marker in text:
+              text = text.replace(marker, replacement, 1)
+
+          text = text.replace(
+              'disabled={collected}',
+              'disabled={scenarioState.finalized || collected}',
+          )
+          text = text.replace(
+              'disabled={\n                    !process ||',
+              'disabled={\n                    scenarioState.finalized ||\n                    !process ||',
+          )
+          text = text.replace(
+              'disabled={\n                    !connection ||',
+              'disabled={\n                    scenarioState.finalized ||\n                    !connection ||',
+          )
+          text = text.replace(
+              'disabled={\n                  !loginActivity ||',
+              'disabled={\n                  scenarioState.finalized ||\n                  !loginActivity ||',
+          )
+          text = text.replace(
+              'type="checkbox"\n                              checked={selected}',
+              'type="checkbox"\n                              checked={selected}\n                              disabled={scenarioState.finalized}',
+          )
+          text = text.replace(
+              'type="text"\n                      value={findingTitle}',
+              'type="text"\n                      value={findingTitle}\n                      disabled={scenarioState.finalized}',
+              1,
+          )
+          text = text.replace(
+              '<textarea\n                      value={findingSummary}',
+              '<textarea\n                      value={findingSummary}\n                      disabled={scenarioState.finalized}',
+              1,
+          )
+          text = text.replace(
+              'disabled={\n                        findingTitle.trim().length === 0 ||',
+              'disabled={\n                        scenarioState.finalized ||\n                        findingTitle.trim().length === 0 ||',
+              1,
+          )
+
+          if text == original:
+              raise SystemExit('No finalized-case mutations were patched')
+
+          path.write_text(text)
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx
+          git commit -m "fix: freeze analyst case after finalization"
+          git push origin HEAD:feat/investigation-finalization
