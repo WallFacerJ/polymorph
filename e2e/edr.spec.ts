@@ -49,19 +49,25 @@ test("EDR traces process ancestry and pivots the same event into SIEM and Case",
     { name: "Search event in SIEM" },
   ).click();
 
-  await expect(
-    page.getByRole("region", {
-      name: "SIEM search workspace",
-    }),
-  ).toBeVisible();
+  const siem = page.getByRole(
+    "region",
+    { name: "SIEM search workspace" },
+  );
+  await expect(siem).toBeVisible();
   await expect(
     page.getByLabel("SIEM query"),
   ).toHaveValue(
     "eventId:event-compromise-powershell",
   );
   await expect(
-    page.getByRole("region", {
-      name: "SIEM search workspace",
+    siem.locator(".siem-result-count strong"),
+  ).toHaveText("1");
+  await siem.getByText(
+    /Process started on device-fin-lt-04/,
+  ).click();
+  await expect(
+    page.getByRole("complementary", {
+      name: "SIEM event detail",
     }),
   ).toContainText("event-compromise-powershell");
 
