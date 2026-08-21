@@ -11,6 +11,7 @@ import {
 
 import {
   getSyntheticHostProcessInvestigation,
+  summarizeSyntheticHostActivity,
 } from "./simulationAdapter";
 
 import type {
@@ -87,6 +88,10 @@ function commandLabel(
         : "logs";
     case "list_network":
       return "net";
+    case "list_activity":
+      return command.objectKind && command.objectId
+        ? `history ${command.objectKind} ${command.objectId}`
+        : "history";
     case "start_service":
       return `start-service ${command.name}`;
     case "stop_service":
@@ -185,6 +190,14 @@ function resultLines(
         ),
       ];
 
+    case "activity":
+      return result.records.length === 0
+        ? ["No host activity matched."]
+        : result.records.map(
+            (record) =>
+              `${record.timestamp} ${record.type.padEnd(22)} ${summarizeSyntheticHostActivity(record)}`,
+          );
+
     case "mutation":
       return [
         `${result.changed ? "changed" : "unchanged"}: ${result.targetType} ${result.targetId}`,
@@ -214,6 +227,25 @@ function pivotCommandForRef(
       return "users";
     case "local_group":
       return "groups";
+    case "account":
+      return null;
+  }
+}
+
+function historyCommandForRef(
+  ref: SyntheticHostObjectRef,
+): string | null {
+  switch (ref.kind) {
+    case "process":
+    case "file":
+    case "service":
+    case "configuration":
+    case "connection":
+      return `history ${ref.kind} ${ref.id}`;
+    case "listener":
+    case "log":
+    case "local_user":
+    case "local_group":
     case "account":
       return null;
   }
@@ -345,11 +377,9 @@ export function RangeWorkspace({
     setError(runtimeError);
   };
 
-  const stagePivot = (
-    ref: SyntheticHostObjectRef,
+  const stageCommand = (
+    command: string | null,
   ) => {
-    const command = pivotCommandForRef(ref);
-
     if (command) {
       setInput(command);
       setError(null);
@@ -581,15 +611,28 @@ export function RangeWorkspace({
                   {process.state}
                 </span>
                 <small>{process.commandLine}</small>
-                <button
-                  type="button"
-                  className="range-context-button"
-                  onClick={() =>
-                    setSelectedProcessId(process.pid)
-                  }
-                >
-                  Trace relationships
-                </button>
+                <div className="range-context-actions">
+                  <button
+                    type="button"
+                    className="range-context-button"
+                    onClick={() =>
+                      setSelectedProcessId(process.pid)
+                    }
+                  >
+                    Trace relationships
+                  </button>
+                  <button
+                    type="button"
+                    className="range-context-button"
+                    onClick={() =>
+                      stageCommand(
+                        `history process ${process.pid}`,
+                      )
+                    }
+                  >
+                    Trace history
+                  </button>
+                </div>
               </div>
             ))}
           </section>
@@ -628,6 +671,8 @@ export function RangeWorkspace({
                     .map((ref) => {
                       const pivot =
                         pivotCommandForRef(ref);
+                      const historyPivot =
+                        historyCommandForRef(ref);
 
                       return (
                         <div
@@ -638,15 +683,30 @@ export function RangeWorkspace({
                             <small>{ref.kind.replaceAll("_", " ")}</small>
                             <code>{ref.id}</code>
                           </span>
-                          {pivot && (
-                            <button
-                              type="button"
-                              className="range-context-button"
-                              onClick={() => stagePivot(ref)}
-                            >
-                              Stage {pivot}
-                            </button>
-                          )}
+                          <div className="range-context-actions">
+                            {pivot && (
+                              <button
+                                type="button"
+                                className="range-context-button"
+                                onClick={() =>
+                                  stageCommand(pivot)
+                                }
+                              >
+                                Stage {pivot}
+                              </button>
+                            )}
+                            {historyPivot && (
+                              <button
+                                type="button"
+                                className="range-context-button"
+                                onClick={() =>
+                                  stageCommand(historyPivot)
+                                }
+                              >
+                                Trace history
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
