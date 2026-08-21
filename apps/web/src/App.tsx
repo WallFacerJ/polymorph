@@ -266,7 +266,7 @@ function ScenarioWorkspace({
   const collectEvidence = (
     eventId: string | undefined,
   ) => {
-    if (!eventId) {
+    if (!eventId || scenarioState.finalized) {
       return;
     }
 
@@ -283,6 +283,10 @@ function ScenarioWorkspace({
   const toggleFindingEvidence = (
     eventId: string,
   ) => {
+    if (scenarioState.finalized) {
+      return;
+    }
+
     setSelectedEvidenceIds((current) =>
       current.includes(eventId)
         ? current.filter(
@@ -300,6 +304,10 @@ function ScenarioWorkspace({
     event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
+
+    if (scenarioState.finalized) {
+      return;
+    }
 
     try {
       const next = addAnalystFinding(
@@ -658,7 +666,7 @@ function ScenarioWorkspace({
                                 event.eventId,
                               )
                             }
-                            disabled={collected}
+                            disabled={scenarioState.finalized || collected}
                           >
                             {collected
                               ? "Evidence collected"
@@ -738,6 +746,7 @@ function ScenarioWorkspace({
                     )
                   }
                   disabled={
+                    scenarioState.finalized ||
                     !process ||
                     isEvidenceCollected(
                       process.eventId,
@@ -780,6 +789,7 @@ function ScenarioWorkspace({
                     )
                   }
                   disabled={
+                    scenarioState.finalized ||
                     !connection ||
                     isEvidenceCollected(
                       connection.eventId,
@@ -871,6 +881,7 @@ function ScenarioWorkspace({
                   )
                 }
                 disabled={
+                  scenarioState.finalized ||
                   !loginActivity ||
                   isEvidenceCollected(
                     loginActivity.eventId,
@@ -945,6 +956,7 @@ function ScenarioWorkspace({
                             <input
                               type="checkbox"
                               checked={selected}
+                              disabled={scenarioState.finalized}
                               onChange={() =>
                                 toggleFindingEvidence(
                                   event.id,
@@ -986,6 +998,7 @@ function ScenarioWorkspace({
                     <input
                       type="text"
                       value={findingTitle}
+                      disabled={scenarioState.finalized}
                       onChange={(event) =>
                         setFindingTitle(
                           event.target.value,
@@ -999,6 +1012,7 @@ function ScenarioWorkspace({
                     Analyst summary
                     <textarea
                       value={findingSummary}
+                      disabled={scenarioState.finalized}
                       onChange={(event) =>
                         setFindingSummary(
                           event.target.value,
@@ -1017,6 +1031,7 @@ function ScenarioWorkspace({
                       type="submit"
                       className="primary-button"
                       disabled={
+                        scenarioState.finalized ||
                         findingTitle.trim().length === 0 ||
                         findingSummary.trim().length === 0 ||
                         selectedEvidenceIds.length === 0
