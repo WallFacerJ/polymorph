@@ -96,6 +96,8 @@ function commandLabel(
       return `start-service ${command.name}`;
     case "stop_service":
       return `stop-service ${command.name}`;
+    case "set_service_startup_mode":
+      return `set-startup ${command.name} ${command.startupMode}`;
     case "terminate_process":
       return `kill ${command.pid}`;
     case "quarantine_file":
