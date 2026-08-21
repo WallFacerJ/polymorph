@@ -1,13 +1,3 @@
-import {
-  createRangeArtifact as buildRangeArtifact,
-  createRangeArtifactEvidenceEvent as buildRangeArtifactEvidenceEvent,
-} from "@polymorph/simulation";
-
-import type {
-  SyntheticHostCommandExecution as RangeHostExecution,
-  SyntheticHostCommandInvocation as RangeHostInvocation,
-} from "@polymorph/simulation";
-
 export {
   addAnalystFinding,
   addAnalystHypothesis,
@@ -20,6 +10,7 @@ export {
   createAnalystCaseState,
   createRangeArtifact,
   createRangeArtifactEvidenceEvent,
+  createRangeEvidenceEvent,
   edrHostActivityProjection,
   edrProjection,
   executeSyntheticHostCommand,
@@ -77,33 +68,3 @@ export type {
   SyntheticHostCommandInvocation,
   SyntheticHostState,
 } from "@polymorph/simulation";
-
-interface RangeEvidenceAcquisitionInput {
-  id: string;
-  timestamp: string;
-  deviceId: string;
-  actorId?: string;
-  invocation: RangeHostInvocation;
-  execution: RangeHostExecution;
-}
-
-export function createRangeEvidenceEvent(
-  input: RangeEvidenceAcquisitionInput,
-) {
-  const artifact = buildRangeArtifact({
-    id: `${input.invocation.id}-artifact`,
-    acquiredAt: input.timestamp,
-    deviceId: input.deviceId,
-    invocation: input.invocation,
-    execution: input.execution,
-  });
-
-  return buildRangeArtifactEvidenceEvent({
-    id: input.id,
-    timestamp: input.timestamp,
-    ...(input.actorId === undefined
-      ? {}
-      : { actorId: input.actorId }),
-    artifact,
-  });
-}
