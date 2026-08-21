@@ -3,6 +3,15 @@ import {
   test,
 } from "@playwright/test";
 
+async function openCase(page: import("@playwright/test").Page) {
+  await page.locator(".workspace-nav")
+    .getByRole(
+      "button",
+      { name: /^Case(?: \d+)?$/ },
+    )
+    .click();
+}
+
 async function collectLoginEvidence(page: import("@playwright/test").Page) {
   await page.getByRole(
     "button",
@@ -55,11 +64,7 @@ test("Case connects source evidence to hypotheses tasks and exact tool pivots", 
   await page.goto("/");
   await collectLoginEvidence(page);
   await collectPowerShellEvidence(page);
-
-  await page.getByRole(
-    "button",
-    { name: "Case", exact: true },
-  ).click();
+  await openCase(page);
 
   let workspace = page.getByRole(
     "region",
@@ -148,10 +153,7 @@ test("Case connects source evidence to hypotheses tasks and exact tool pivots", 
     "eventId:event-compromise-login",
   );
 
-  await page.getByRole(
-    "button",
-    { name: "Case", exact: true },
-  ).click();
+  await openCase(page);
   workspace = page.getByRole(
     "region",
     { name: "Case incident command workspace" },
@@ -188,10 +190,7 @@ test("Case derives response decisions and report state from performed operations
     { name: /Disable compromised account/ },
   ).click();
 
-  await page.getByRole(
-    "button",
-    { name: "Case", exact: true },
-  ).click();
+  await openCase(page);
 
   const workspace = page.getByRole(
     "region",
