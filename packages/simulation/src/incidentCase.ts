@@ -19,6 +19,7 @@ import type {
 } from "./scenarioOutcome";
 
 import type {
+  HostEvidenceIntegrity,
   SimulationEvent,
   SimulationEventType,
 } from "./simulationEvent";
@@ -38,6 +39,15 @@ export interface CaseIndicator {
   value: string;
 }
 
+export interface CaseArtifactProvenance {
+  artifactId: EntityId;
+  sourceInvocationId: string;
+  acquisitionMethod: "controlled_range_command";
+  acquiredAt: string;
+  sourceReference: string;
+  integrity: HostEvidenceIntegrity;
+}
+
 export interface CaseEvidenceRecord {
   eventId: EntityId;
   timestamp: string;
@@ -47,6 +57,7 @@ export interface CaseEvidenceRecord {
   message: string;
   relatedEntityIds: readonly EntityId[];
   indicators: readonly CaseIndicator[];
+  artifact?: CaseArtifactProvenance;
 }
 
 export interface CaseDecisionRecord {
@@ -259,6 +270,43 @@ function getIndicators(
   );
 }
 
+function getArtifactProvenance(
+  event: SimulationEvent,
+): CaseArtifactProvenance | undefined {
+  if (event.type !== "HOST_EVIDENCE_COLLECTED") {
+    return undefined;
+  }
+
+  const {
+    artifactId,
+    sourceInvocationId,
+    acquisitionMethod,
+    acquiredAt,
+    sourceReference,
+    integrity,
+  } = event.payload;
+
+  if (
+    !artifactId ||
+    !sourceInvocationId ||
+    !acquisitionMethod ||
+    !acquiredAt ||
+    !sourceReference ||
+    !integrity
+  ) {
+    return undefined;
+  }
+
+  return {
+    artifactId,
+    sourceInvocationId,
+    acquisitionMethod,
+    acquiredAt,
+    sourceReference,
+    integrity: structuredClone(integrity),
+  };
+}
+
 export function buildCaseEvidenceRecords(
   state: AnalystCaseState,
   events: readonly SimulationEvent[],
@@ -286,6 +334,9 @@ export function buildCaseEvidenceRecords(
         );
       }
 
+      const artifact =
+        getArtifactProvenance(event);
+
       return {
         eventId,
         timestamp: event.timestamp,
@@ -299,6 +350,9 @@ export function buildCaseEvidenceRecords(
         relatedEntityIds:
           getKnownEntityIds(event),
         indicators: getIndicators(event),
+        ...(artifact === undefined
+          ? {}
+          : { artifact }),
       };
     },
   );
