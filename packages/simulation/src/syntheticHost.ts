@@ -213,6 +213,11 @@ export type SyntheticHostCommand =
       name: string;
     }
   | {
+      type: "set_service_startup_mode";
+      name: string;
+      startupMode: SyntheticHostServiceStartupMode;
+    }
+  | {
       type: "terminate_process";
       pid: number;
     }
@@ -1266,6 +1271,46 @@ export function executeSyntheticHostCommand(
         },
         true,
         `${command.type === "start_service" ? "Started" : "Stopped"} synthetic host service ${command.name}.`,
+      );
+    }
+
+    case "set_service_startup_mode": {
+      requireCapability(
+        state,
+        "manage:services",
+      );
+      const service = requireService(
+        state,
+        command.name,
+      );
+      const changed =
+        service.startupMode !== command.startupMode;
+      const nextState = changed
+        ? {
+            ...state,
+            services: state.services.map(
+              (candidate) =>
+                candidate.name === command.name
+                  ? {
+                      ...candidate,
+                      startupMode: command.startupMode,
+                    }
+                  : candidate,
+            ),
+          }
+        : state;
+
+      return execution(
+        nextState,
+        invocation,
+        {
+          kind: "mutation",
+          changed,
+          targetType: "service",
+          targetId: command.name,
+        },
+        true,
+        `Changed synthetic host service ${command.name} startup mode ${service.startupMode} -> ${command.startupMode}.`,
       );
     }
 
