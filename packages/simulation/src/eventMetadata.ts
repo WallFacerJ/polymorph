@@ -14,6 +14,7 @@ export type SimulationEventFamily =
   | "file"
   | "network"
   | "endpoint"
+  | "host"
   | "security";
 
 export function getSimulationEventFamily(
@@ -43,6 +44,12 @@ export function getSimulationEventFamily(
 
     case "ENDPOINT_HEARTBEAT":
       return "endpoint";
+
+    case "HOST_PROCESS_TERMINATED":
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+    case "HOST_EVIDENCE_COLLECTED":
+      return "host";
 
     case "ALERT_CREATED":
       return "security";
