@@ -123,7 +123,7 @@ describe("Range artifact evidence bridge", () => {
     ).toContain("203.0.113.77/bootstrap");
   });
 
-  it("projects artifact provenance and network indicators into Case", () => {
+  it("projects artifact provenance, source lineage, and network indicators into Case", () => {
     const invocation = {
       id: "range-command-net",
       timestamp: "2026-08-21T05:00:02.000Z",
@@ -161,7 +161,7 @@ describe("Range artifact evidence bridge", () => {
       expect.objectContaining({
         eventId: event.id,
         primaryTool: "range",
-        artifact: {
+        artifact: expect.objectContaining({
           artifactId: artifact.id,
           sourceInvocationId: invocation.id,
           acquisitionMethod:
@@ -173,7 +173,20 @@ describe("Range artifact evidence bridge", () => {
             reason:
               "source_did_not_provide_integrity",
           },
-        },
+          sourceRefs: expect.arrayContaining([
+            {
+              kind: "connection",
+              id: "connection-c2",
+            },
+            {
+              kind: "process",
+              id: "8420",
+            },
+          ]),
+          sourceRelationshipIds: [
+            "derived:process:8420:connection:connection-c2",
+          ],
+        }),
         indicators: expect.arrayContaining([
           {
             kind: "ip",
