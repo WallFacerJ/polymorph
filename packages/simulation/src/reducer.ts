@@ -131,6 +131,10 @@ export function applySimulationEvent(
     case "FILE_ACCESSED":
     case "NETWORK_CONNECTION":
     case "ENDPOINT_HEARTBEAT":
+    case "HOST_PROCESS_TERMINATED":
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+    case "HOST_EVIDENCE_COLLECTED":
     case "ALERT_CREATED":
       return {
         ...world,
