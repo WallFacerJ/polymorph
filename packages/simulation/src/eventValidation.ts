@@ -7,6 +7,7 @@ import {
 } from "./assertNever";
 
 import type {
+  HostEvidenceCollectedEvent,
   SimulationEvent,
 } from "./simulationEvent";
 
@@ -28,6 +29,76 @@ function requireEntity<T>(
   }
 
   return entity;
+}
+
+function validateRangeArtifactEvidence(
+  event: HostEvidenceCollectedEvent,
+): void {
+  const artifact = event.payload.artifact;
+
+  if (!artifact) {
+    return;
+  }
+
+  if (artifact.deviceId !== event.payload.deviceId) {
+    throw new Error(
+      `Range artifact ${artifact.id} device does not match evidence device ${event.payload.deviceId}.`,
+    );
+  }
+
+  if (artifact.kind !== event.payload.evidenceKind) {
+    throw new Error(
+      `Range artifact ${artifact.id} kind does not match evidence kind ${event.payload.evidenceKind}.`,
+    );
+  }
+
+  if (event.payload.artifactId !== artifact.id) {
+    throw new Error(
+      `Range artifact id does not match evidence artifact id: ${artifact.id}.`,
+    );
+  }
+
+  if (
+    event.payload.sourceInvocationId !==
+    artifact.invocationId
+  ) {
+    throw new Error(
+      `Range artifact ${artifact.id} invocation provenance is inconsistent.`,
+    );
+  }
+
+  if (
+    event.payload.acquisitionMethod !==
+    artifact.acquisitionMethod
+  ) {
+    throw new Error(
+      `Range artifact ${artifact.id} acquisition method is inconsistent.`,
+    );
+  }
+
+  if (event.payload.acquiredAt !== artifact.acquiredAt) {
+    throw new Error(
+      `Range artifact ${artifact.id} acquisition timestamp is inconsistent.`,
+    );
+  }
+
+  if (
+    event.payload.sourceReference !==
+    artifact.sourceReference
+  ) {
+    throw new Error(
+      `Range artifact ${artifact.id} source reference is inconsistent.`,
+    );
+  }
+
+  if (
+    JSON.stringify(event.payload.integrity) !==
+    JSON.stringify(artifact.integrity)
+  ) {
+    throw new Error(
+      `Range artifact ${artifact.id} integrity metadata is inconsistent.`,
+    );
+  }
 }
 
 export function validateSimulationEvent(
@@ -230,12 +301,21 @@ export function validateSimulationEvent(
 
     case "HOST_SERVICE_STATE_CHANGED":
     case "HOST_FILE_QUARANTINED":
+      requireEntity(
+        world.devices,
+        event.payload.deviceId,
+        "Device",
+      );
+
+      return;
+
     case "HOST_EVIDENCE_COLLECTED":
       requireEntity(
         world.devices,
         event.payload.deviceId,
         "Device",
       );
+      validateRangeArtifactEvidence(event);
 
       return;
 
