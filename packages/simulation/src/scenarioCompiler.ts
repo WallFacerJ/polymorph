@@ -210,15 +210,7 @@ function compileSyntheticHosts(
     seenDeviceIds.add(seed.deviceId);
 
     return createSyntheticHostState(
-      {
-        ...seed,
-        capabilities: [
-          ...new Set([
-            ...(seed.capabilities ?? []),
-            "read:history" as const,
-          ]),
-        ],
-      },
+      seed,
       initialWorld,
     );
   });
