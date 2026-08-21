@@ -16,6 +16,7 @@ import {
 
 import {
   createRangeEvidenceEvent,
+  replayRangeCommandsWithEvents,
 } from "./rangeEventBridge";
 
 import {
@@ -39,6 +40,7 @@ const host = createSyntheticHostState({
   capabilities: [
     "read:filesystem",
     "read:network",
+    "terminate:process",
   ],
   files: [
     {
@@ -108,49 +110,69 @@ function acquire(
   });
 }
 
+function acquiredEvidence() {
+  const fileEvent = acquire(
+    {
+      id: "range-command-1",
+      timestamp: "2026-08-21T07:00:01.000Z",
+      command: {
+        type: "read_file",
+        path: scriptPath,
+      },
+    },
+    "range-command-1-evidence",
+  );
+  const networkEvent = acquire(
+    {
+      id: "range-command-2",
+      timestamp: "2026-08-21T07:00:02.000Z",
+      command: {
+        type: "list_network",
+      },
+    },
+    "range-command-2-evidence",
+  );
+
+  return {
+    fileEvent,
+    networkEvent,
+    events: [fileEvent, networkEvent],
+  };
+}
+
+function collectBoth(
+  fileEvent: ReturnType<typeof acquire>,
+  networkEvent: ReturnType<typeof acquire>,
+) {
+  const events = [fileEvent, networkEvent];
+  let state = createAnalystCaseState();
+
+  state = collectAnalystEvidence(
+    state,
+    fileEvent.id,
+    events,
+  );
+  state = collectAnalystEvidence(
+    state,
+    networkEvent.id,
+    events,
+  );
+
+  return buildCaseEvidenceRecords(
+    state,
+    events,
+  );
+}
+
 describe("Case Range artifact lineage", () => {
   it("connects independently acquired file and network artifacts through shared process lineage", () => {
-    const fileEvent = acquire(
-      {
-        id: "range-command-1",
-        timestamp: "2026-08-21T07:00:01.000Z",
-        command: {
-          type: "read_file",
-          path: scriptPath,
-        },
-      },
-      "range-command-1-evidence",
-    );
-    const networkEvent = acquire(
-      {
-        id: "range-command-2",
-        timestamp: "2026-08-21T07:00:02.000Z",
-        command: {
-          type: "list_network",
-        },
-      },
-      "range-command-2-evidence",
-    );
-    const events = [
+    const {
       fileEvent,
       networkEvent,
-    ];
-    let state = createAnalystCaseState();
-
-    state = collectAnalystEvidence(
-      state,
-      fileEvent.id,
-      events,
-    );
-    state = collectAnalystEvidence(
-      state,
-      networkEvent.id,
-      events,
-    );
-
-    const evidence = buildCaseEvidenceRecords(
-      state,
-      events,
+    } = acquiredEvidence();
+    const evidence = collectBoth(
+      fileEvent,
+      networkEvent,
     );
     const lineage = buildCaseArtifactLineage(
       evidence,
@@ -178,5 +200,58 @@ describe("Case Range artifact lineage", () => {
         ],
       },
     ]);
+  });
+
+  it("keeps acquired lineage immutable after containment closes live process-owned network state", () => {
+    const {
+      fileEvent,
+      networkEvent,
+    } = acquiredEvidence();
+    const evidenceBeforeContainment = collectBoth(
+      fileEvent,
+      networkEvent,
+    );
+    const lineageBeforeContainment =
+      buildCaseArtifactLineage(
+        evidenceBeforeContainment,
+      );
+
+    const contained = replayRangeCommandsWithEvents(
+      host,
+      [
+        {
+          id: "range-command-3",
+          timestamp: "2026-08-21T07:00:03.000Z",
+          command: {
+            type: "terminate_process",
+            pid: 8420,
+          },
+        },
+      ],
+    );
+
+    expect(
+      contained.state.network.connections[0]?.state,
+    ).toBe("closed");
+    expect(
+      contained.state.processes[0]?.state,
+    ).toBe("terminated");
+
+    const evidenceAfterContainment = collectBoth(
+      fileEvent,
+      networkEvent,
+    );
+
+    expect(
+      buildCaseArtifactLineage(
+        evidenceAfterContainment,
+      ),
+    ).toEqual(lineageBeforeContainment);
+    expect(
+      evidenceAfterContainment[1].artifact?.sourceRefs,
+    ).toContainEqual({
+      kind: "connection",
+      id: "range-connection-powershell",
+    });
   });
 });
