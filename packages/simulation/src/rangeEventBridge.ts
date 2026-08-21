@@ -89,14 +89,15 @@ function mutationEvent(
 
   switch (invocation.command.type) {
     case "terminate_process": {
+      const command = invocation.command;
       const process = previousState.processes.find(
         (candidate) =>
-          candidate.pid === invocation.command.pid,
+          candidate.pid === command.pid,
       );
 
       if (!process) {
         throw new Error(
-          `Range mutation event cannot resolve process ${invocation.command.pid}.`,
+          `Range mutation event cannot resolve process ${command.pid}.`,
         );
       }
 
@@ -132,14 +133,15 @@ function mutationEvent(
 
     case "start_service":
     case "stop_service": {
+      const command = invocation.command;
       const service = previousState.services.find(
         (candidate) =>
-          candidate.name === invocation.command.name,
+          candidate.name === command.name,
       );
 
       if (!service) {
         throw new Error(
-          `Range mutation event cannot resolve service ${invocation.command.name}.`,
+          `Range mutation event cannot resolve service ${command.name}.`,
         );
       }
 
@@ -151,7 +153,7 @@ function mutationEvent(
           serviceName: service.name,
           previousStatus: service.status,
           status:
-            invocation.command.type === "start_service"
+            command.type === "start_service"
               ? "running"
               : "stopped",
         },
@@ -159,14 +161,15 @@ function mutationEvent(
     }
 
     case "quarantine_file": {
+      const command = invocation.command;
       const file = previousState.files.find(
         (candidate) =>
-          candidate.path === invocation.command.path,
+          candidate.path === command.path,
       );
 
       if (!file) {
         throw new Error(
-          `Range mutation event cannot resolve file ${invocation.command.path}.`,
+          `Range mutation event cannot resolve file ${command.path}.`,
         );
       }
 
@@ -177,7 +180,7 @@ function mutationEvent(
           deviceId: previousState.deviceId,
           originalPath: file.path,
           quarantinePath:
-            invocation.command.destinationPath,
+            command.destinationPath,
           ...(file.sha256 === undefined
             ? {}
             : { sha256: file.sha256 }),
