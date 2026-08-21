@@ -11,6 +11,10 @@ import type {
 } from "./simulationEvent";
 
 import {
+  validateSyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import {
   evaluateScenarioOutcome,
   finalizeScenarioOutcome,
 } from "./scenarioOutcome";
@@ -197,6 +201,43 @@ function requireValidSyntheticHostRelationships(
   }
 }
 
+function requireValidSyntheticHostActivity(
+  scenario: ScenarioDefinition,
+): void {
+  const hostByDeviceId = new Map(
+    (scenario.syntheticHosts ?? []).map(
+      (host) => [host.deviceId, host],
+    ),
+  );
+  const seenDeviceIds = new Set<string>();
+
+  for (const activitySet of
+    scenario.syntheticHostActivity ?? []) {
+    if (seenDeviceIds.has(activitySet.deviceId)) {
+      throw new Error(
+        `Scenario ${scenario.id} defines duplicate synthetic-host activity set for device: ${activitySet.deviceId}`,
+      );
+    }
+
+    seenDeviceIds.add(activitySet.deviceId);
+
+    const host = hostByDeviceId.get(
+      activitySet.deviceId,
+    );
+
+    if (!host) {
+      throw new Error(
+        `Scenario ${scenario.id} defines synthetic-host activity for missing device host: ${activitySet.deviceId}`,
+      );
+    }
+
+    validateSyntheticHostActivity(
+      host,
+      activitySet.records,
+    );
+  }
+}
+
 function requireUniqueActionIds(
   scenario: ScenarioDefinition,
 ): void {
@@ -345,6 +386,7 @@ export function validateScenarioDefinition(
 ): void {
   requireValidInitialWorld(scenario);
   requireValidSyntheticHostRelationships(scenario);
+  requireValidSyntheticHostActivity(scenario);
   requireUniqueActionIds(scenario);
 
   const openingWorld =
