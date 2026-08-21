@@ -1,0 +1,167 @@
+name: Wire Range workspace
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/range-workspace'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/range-workspace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wire Range into EDR and App
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          edr_path = Path('apps/web/src/EdrWorkspace.tsx')
+          edr = edr_path.read_text()
+
+          props_marker = '  onSearchSiem: (query: string) => void;\n  onOpenCase: () => void;\n'
+          props_replacement = '  onSearchSiem: (query: string) => void;\n  onOpenCase: () => void;\n  rangeDeviceIds: readonly string[];\n  onOpenRange: (deviceId: string) => void;\n'
+          if 'rangeDeviceIds: readonly string[];' not in edr:
+              if props_marker not in edr:
+                  raise SystemExit('EDR props marker not found')
+              edr = edr.replace(props_marker, props_replacement, 1)
+
+          destructure_marker = '  onSearchSiem,\n  onOpenCase,\n}: EdrWorkspaceProps) {'
+          destructure_replacement = '  onSearchSiem,\n  onOpenCase,\n  rangeDeviceIds,\n  onOpenRange,\n}: EdrWorkspaceProps) {'
+          if '  rangeDeviceIds,\n  onOpenRange,\n}: EdrWorkspaceProps)' not in edr:
+              if destructure_marker not in edr:
+                  raise SystemExit('EDR destructure marker not found')
+              edr = edr.replace(destructure_marker, destructure_replacement, 1)
+
+          summary_marker = '            </div>\n          </div>\n\n          <div\n            className="edr-tabs"'
+          summary_replacement = '''            </div>\n            {rangeDeviceIds.includes(selectedDeviceId) && (\n              <button\n                type="button"\n                className="secondary-button"\n                onClick={() => onOpenRange(selectedDeviceId)}\n              >\n                Open synthetic host\n              </button>\n            )}\n          </div>\n\n          <div\n            className="edr-tabs"'''
+          if 'Open synthetic host' not in edr:
+              if summary_marker not in edr:
+                  raise SystemExit('EDR summary marker not found')
+              edr = edr.replace(summary_marker, summary_replacement, 1)
+
+          edr_path.write_text(edr)
+
+          app_path = Path('apps/web/src/App.tsx')
+          app = app_path.read_text()
+
+          case_import = 'import {\n  CaseWorkspace,\n} from "./CaseWorkspace";\n'
+          if 'from "./RangeWorkspace"' not in app:
+              if case_import not in app:
+                  raise SystemExit('Case import marker not found')
+              app = app.replace(
+                  case_import,
+                  case_import + '\nimport {\n  RangeWorkspace,\n} from "./RangeWorkspace";\n',
+                  1,
+              )
+
+          export_marker = '  rebuildProjection,\n  siemProjection,\n'
+          if '  replaySyntheticHostCommands,\n' not in app:
+              if export_marker not in app:
+                  raise SystemExit('simulation export marker not found')
+              app = app.replace(
+                  export_marker,
+                  '  rebuildProjection,\n  replaySyntheticHostCommands,\n  siemProjection,\n',
+                  1,
+              )
+
+          type_marker = 'import type {\n  ScenarioDefinition,\n} from "./simulationAdapter";\n'
+          type_replacement = 'import type {\n  ScenarioDefinition,\n  SyntheticHostCommand,\n  SyntheticHostCommandInvocation,\n} from "./simulationAdapter";\n'
+          if '  SyntheticHostCommand,\n' not in app:
+              if type_marker not in app:
+                  raise SystemExit('simulation type import marker not found')
+              app = app.replace(type_marker, type_replacement, 1)
+
+          if '| "range";' not in app:
+              app = app.replace(
+                  '  | "identity"\n  | "case";',
+                  '  | "identity"\n  | "case"\n  | "range";',
+                  1,
+              )
+
+          if '{ id: "range", label: "Range" },' not in app:
+              app = app.replace(
+                  '  { id: "identity", label: "Identity" },\n  { id: "case", label: "Case" },',
+                  '  { id: "identity", label: "Identity" },\n  { id: "case", label: "Case" },\n  { id: "range", label: "Range" },',
+                  1,
+              )
+
+          state_marker = '  const [siemPivot, setSiemPivot] =\n    useState({\n      query: "",\n      nonce: 0,\n    });\n'
+          if 'const [rangeInvocations' not in app:
+              if state_marker not in app:
+                  raise SystemExit('App state marker not found')
+              app = app.replace(
+                  state_marker,
+                  state_marker + '''  const [rangeDeviceId, setRangeDeviceId] =\n    useState(context.deviceId);\n  const [rangeInvocations, setRangeInvocations] =\n    useState<SyntheticHostCommandInvocation[]>([]);\n''',
+                  1,
+              )
+
+          projection_marker = '  const user =\n'
+          if 'const rangeInitialHost =' not in app:
+              if projection_marker not in app:
+                  raise SystemExit('App projection boundary not found')
+              range_derived = '''  const rangeInitialHost = useMemo(\n    () =>\n      (scenario.syntheticHosts ?? []).find(\n        (host) =>\n          host.deviceId === rangeDeviceId,\n      ),\n    [scenario.syntheticHosts, rangeDeviceId],\n  );\n\n  const rangeReplay = useMemo(\n    () =>\n      rangeInitialHost\n        ? replaySyntheticHostCommands(\n            rangeInitialHost,\n            rangeInvocations,\n          )\n        : null,\n    [rangeInitialHost, rangeInvocations],\n  );\n\n'''
+              app = app.replace(projection_marker, range_derived + projection_marker, 1)
+
+          open_siem_marker = '  const resetScenario = () => {'
+          if 'const executeRangeCommand =' not in app:
+              if open_siem_marker not in app:
+                  raise SystemExit('App reset marker not found')
+              execute_range = '''  const openRange = (deviceId: string) => {\n    if (deviceId !== rangeDeviceId) {\n      setRangeInvocations([]);\n    }\n    setRangeDeviceId(deviceId);\n    setActiveView("range");\n  };\n\n  const executeRangeCommand = (\n    command: SyntheticHostCommand,\n  ): string | null => {\n    if (scenarioState.finalized) {\n      return "The finalized run is read-only. Reset the scenario to operate the host again.";\n    }\n\n    if (!rangeInitialHost) {\n      return `No synthetic host is authored for device ${rangeDeviceId}.`;\n    }\n\n    const baseTimestamp =\n      scenario.openingEvents.at(-1)?.timestamp ??\n      scenario.initialWorld.simulationTime;\n    const invocation: SyntheticHostCommandInvocation = {\n      id: `range-command-${rangeInvocations.length + 1}`,\n      timestamp: new Date(\n        Date.parse(baseTimestamp) +\n          (rangeInvocations.length + 1) * 1000,\n      ).toISOString(),\n      command,\n    };\n\n    try {\n      replaySyntheticHostCommands(\n        rangeInitialHost,\n        [\n          ...rangeInvocations,\n          invocation,\n        ],\n      );\n      setRangeInvocations((current) => [\n        ...current,\n        invocation,\n      ]);\n      return null;\n    } catch (caught: unknown) {\n      return caught instanceof Error\n        ? caught.message\n        : String(caught);\n    }\n  };\n\n'''
+              app = app.replace(open_siem_marker, execute_range + open_siem_marker, 1)
+
+          reset_marker = '    setCaseError(null);\n    setActiveView("alerts");\n'
+          if '    setRangeInvocations([]);\n    setRangeDeviceId(context.deviceId);\n' not in app:
+              if reset_marker not in app:
+                  raise SystemExit('App reset body marker not found')
+              app = app.replace(
+                  reset_marker,
+                  '    setCaseError(null);\n    setRangeInvocations([]);\n    setRangeDeviceId(context.deviceId);\n    setActiveView("alerts");\n',
+                  1,
+              )
+
+          nav_marker = '            {navItems.map((item) => ('
+          if 'navItems.filter((item)' not in app:
+              if nav_marker not in app:
+                  raise SystemExit('App nav marker not found')
+              app = app.replace(
+                  nav_marker,
+                  '            {navItems.filter((item) =>\n              item.id !== "range" ||\n              (scenario.syntheticHosts?.length ?? 0) > 0,\n            ).map((item) => (',
+                  1,
+              )
+
+          edr_marker = '              onSearchSiem={openSiem}\n              onOpenCase={() => setActiveView("case")}\n            />'
+          edr_replacement = '''              onSearchSiem={openSiem}\n              onOpenCase={() => setActiveView("case")}\n              rangeDeviceIds={(scenario.syntheticHosts ?? []).map(\n                (host) => host.deviceId,\n              )}\n              onOpenRange={openRange}\n            />'''
+          if '              onOpenRange={openRange}\n' not in app:
+              if edr_marker not in app:
+                  raise SystemExit('App EDR props marker not found')
+              app = app.replace(edr_marker, edr_replacement, 1)
+
+          case_render_marker = '        {activeView === "case" && ('
+          if 'activeView === "range"' not in app:
+              if case_render_marker not in app:
+                  raise SystemExit('App Case render marker not found')
+              range_render = '''        {activeView === "range" && (\n          <section className="workspace-section range-section">\n            {rangeInitialHost &&\n            rangeReplay &&\n            scenarioState.world.devices[rangeDeviceId] ? (\n              <RangeWorkspace\n                device={scenarioState.world.devices[rangeDeviceId]}\n                host={rangeReplay.state}\n                invocations={rangeInvocations}\n                executions={rangeReplay.executions}\n                finalized={scenarioState.finalized}\n                onExecute={executeRangeCommand}\n              />\n            ) : (\n              <div className="case-empty">\n                No synthetic Range host is authored for this device.\n              </div>\n            )}\n          </section>\n        )}\n\n'''
+              app = app.replace(case_render_marker, range_render + case_render_marker, 1)
+
+          app_path.write_text(app)
+          PY
+
+      - name: Commit Range UI wiring
+        run: |
+          if git diff --quiet; then
+            echo "No Range UI wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx apps/web/src/EdrWorkspace.tsx
+          git commit -m "feat: wire Range investigation workflow"
+          git push origin HEAD:feat/range-workspace
