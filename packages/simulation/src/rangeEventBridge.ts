@@ -178,6 +178,32 @@ function mutationEvent(
       };
     }
 
+    case "set_service_startup_mode": {
+      const command = invocation.command;
+      const service = previousState.services.find(
+        (candidate) =>
+          candidate.name === command.name,
+      );
+
+      if (!service) {
+        throw new Error(
+          `Range mutation event cannot resolve service ${command.name}.`,
+        );
+      }
+
+      return {
+        ...base,
+        type: "HOST_SERVICE_STARTUP_MODE_CHANGED",
+        payload: {
+          deviceId: previousState.deviceId,
+          serviceName: service.name,
+          previousStartupMode:
+            service.startupMode,
+          startupMode: command.startupMode,
+        },
+      };
+    }
+
     case "quarantine_file": {
       const command = invocation.command;
       const file = previousState.files.find(

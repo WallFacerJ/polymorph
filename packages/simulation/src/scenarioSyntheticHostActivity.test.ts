@@ -53,7 +53,7 @@ describe("scenario synthetic host activity", () => {
     );
     expect(
       scenario.syntheticHosts?.[0]?.capabilities,
-    ).toContain("read:history");
+    ).not.toContain("read:history");
 
     const teamsNetwork = records.find(
       (record) =>

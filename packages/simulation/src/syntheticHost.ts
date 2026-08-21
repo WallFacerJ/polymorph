@@ -29,7 +29,6 @@ export type SyntheticHostCapability =
   | "read:configuration"
   | "read:logs"
   | "read:network"
-  | "read:history"
   | "manage:services"
   | "terminate:process"
   | "quarantine:file";
@@ -213,6 +212,11 @@ export type SyntheticHostCommand =
       name: string;
     }
   | {
+      type: "set_service_startup_mode";
+      name: string;
+      startupMode: SyntheticHostServiceStartupMode;
+    }
+  | {
       type: "terminate_process";
       pid: number;
     }
@@ -317,7 +321,6 @@ const ALL_CAPABILITIES:
     "read:configuration",
     "read:logs",
     "read:network",
-    "read:history",
     "manage:services",
     "terminate:process",
     "quarantine:file",
@@ -1170,11 +1173,6 @@ export function executeSyntheticHostCommand(
     }
 
     case "list_activity": {
-      requireCapability(
-        state,
-        "read:history",
-      );
-
       const hasKind =
         command.objectKind !== undefined;
       const hasId =
@@ -1266,6 +1264,46 @@ export function executeSyntheticHostCommand(
         },
         true,
         `${command.type === "start_service" ? "Started" : "Stopped"} synthetic host service ${command.name}.`,
+      );
+    }
+
+    case "set_service_startup_mode": {
+      requireCapability(
+        state,
+        "manage:services",
+      );
+      const service = requireService(
+        state,
+        command.name,
+      );
+      const changed =
+        service.startupMode !== command.startupMode;
+      const nextState = changed
+        ? {
+            ...state,
+            services: state.services.map(
+              (candidate) =>
+                candidate.name === command.name
+                  ? {
+                      ...candidate,
+                      startupMode: command.startupMode,
+                    }
+                  : candidate,
+            ),
+          }
+        : state;
+
+      return execution(
+        nextState,
+        invocation,
+        {
+          kind: "mutation",
+          changed,
+          targetType: "service",
+          targetId: command.name,
+        },
+        true,
+        `Changed synthetic host service ${command.name} startup mode ${service.startupMode} -> ${command.startupMode}.`,
       );
     }
 

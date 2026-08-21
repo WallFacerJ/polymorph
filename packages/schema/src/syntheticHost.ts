@@ -17,6 +17,11 @@ const virtualPath = nonEmptyString.refine(
 );
 const port = z.number().int().min(0).max(65535);
 const pid = z.number().int().positive();
+const serviceStartupMode = z.enum([
+  "automatic",
+  "manual",
+  "disabled",
+]);
 
 export const syntheticHostCapabilitySchema = z.enum([
   "read:filesystem",
@@ -26,7 +31,6 @@ export const syntheticHostCapabilitySchema = z.enum([
   "read:configuration",
   "read:logs",
   "read:network",
-  "read:history",
   "manage:services",
   "terminate:process",
   "quarantine:file",
@@ -62,11 +66,7 @@ export const syntheticHostProcessSchema = z.object({
 export const syntheticHostServiceSchema = z.object({
   name: nonEmptyString,
   executable: nonEmptyString,
-  startupMode: z.enum([
-    "automatic",
-    "manual",
-    "disabled",
-  ]),
+  startupMode: serviceStartupMode,
   status: z.enum([
     "running",
     "stopped",
@@ -211,6 +211,13 @@ export const syntheticHostActivitySchema =
       type: z.literal("service_state"),
       serviceName: nonEmptyString,
       status: z.enum(["running", "stopped"]),
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("service_startup_mode"),
+      serviceName: nonEmptyString,
+      previousStartupMode: serviceStartupMode,
+      startupMode: serviceStartupMode,
     }).strict(),
     z.object({
       ...syntheticHostActivityBase,

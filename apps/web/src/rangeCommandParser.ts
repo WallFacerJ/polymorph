@@ -17,7 +17,9 @@ export const RANGE_COMMAND_HELP = [
   "ls [prefix]",
   "cat <path>",
   "ps",
+  "process <pid>",
   "services",
+  "service <name>",
   "users",
   "groups",
   "config <key>",
@@ -26,6 +28,7 @@ export const RANGE_COMMAND_HELP = [
   "history [process|file|service|configuration|connection <id>]",
   "stop-service <name>",
   "start-service <name>",
+  "set-startup <name> <automatic|manual|disabled>",
   "kill <pid>",
   "quarantine <path> <destination>",
 ] as const;
@@ -39,6 +42,23 @@ const HISTORY_OBJECT_KINDS = new Set<
   "configuration",
   "connection",
 ]);
+
+const SERVICE_STARTUP_MODES = [
+  "automatic",
+  "manual",
+  "disabled",
+] as const;
+
+type ServiceStartupMode =
+  (typeof SERVICE_STARTUP_MODES)[number];
+
+function isServiceStartupMode(
+  value: string,
+): value is ServiceStartupMode {
+  return SERVICE_STARTUP_MODES.some(
+    (candidate) => candidate === value,
+  );
+}
 
 function tokenize(
   input: string,
@@ -116,6 +136,22 @@ function requireNoExtraArgs(
   );
 }
 
+function requirePositivePid(
+  value: string | undefined,
+  usage: string,
+): number {
+  const rawPid = requireArgument(value, usage);
+  const pid = Number(rawPid);
+
+  if (!Number.isInteger(pid) || pid <= 0) {
+    throw new Error(
+      `Range command ${usage.split(" ")[0]} requires a positive integer pid.`,
+    );
+  }
+
+  return pid;
+}
+
 export function parseRangeCommand(
   input: string,
 ): RangeParsedCommand {
@@ -171,12 +207,46 @@ export function parseRangeCommand(
         },
       };
 
+    case "process":
+      requireNoExtraArgs(
+        args,
+        1,
+        "process <pid>",
+      );
+      return {
+        kind: "runtime",
+        command: {
+          type: "get_process",
+          pid: requirePositivePid(
+            args[0],
+            "process <pid>",
+          ),
+        },
+      };
+
     case "services":
       requireNoExtraArgs(args, 0, "services");
       return {
         kind: "runtime",
         command: {
           type: "list_services",
+        },
+      };
+
+    case "service":
+      requireNoExtraArgs(
+        args,
+        1,
+        "service <name>",
+      );
+      return {
+        kind: "runtime",
+        command: {
+          type: "get_service",
+          name: requireArgument(
+            args[0],
+            "service <name>",
+          ),
         },
       };
 
@@ -309,31 +379,49 @@ export function parseRangeCommand(
         },
       };
 
-    case "kill": {
-      requireNoExtraArgs(args, 1, "kill <pid>");
-      const rawPid = requireArgument(
-        args[0],
-        "kill <pid>",
+    case "set-startup": {
+      requireNoExtraArgs(
+        args,
+        2,
+        "set-startup <name> <automatic|manual|disabled>",
       );
-      const pid = Number(rawPid);
+      const serviceName = requireArgument(
+        args[0],
+        "set-startup <name> <automatic|manual|disabled>",
+      );
+      const startupMode = requireArgument(
+        args[1],
+        "set-startup <name> <automatic|manual|disabled>",
+      ).toLowerCase();
 
-      if (
-        !Number.isInteger(pid) ||
-        pid <= 0
-      ) {
+      if (!isServiceStartupMode(startupMode)) {
         throw new Error(
-          "Range command kill requires a positive integer pid.",
+          `Range command set-startup requires automatic, manual, or disabled; received: ${startupMode}.`,
         );
       }
 
       return {
         kind: "runtime",
         command: {
-          type: "terminate_process",
-          pid,
+          type: "set_service_startup_mode",
+          name: serviceName,
+          startupMode,
         },
       };
     }
+
+    case "kill":
+      requireNoExtraArgs(args, 1, "kill <pid>");
+      return {
+        kind: "runtime",
+        command: {
+          type: "terminate_process",
+          pid: requirePositivePid(
+            args[0],
+            "kill <pid>",
+          ),
+        },
+      };
 
     case "quarantine":
       requireNoExtraArgs(

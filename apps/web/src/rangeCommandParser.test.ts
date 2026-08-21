@@ -30,6 +30,26 @@ describe("Range command parser", () => {
         type: "list_network",
       },
     });
+
+    expect(
+      parseRangeCommand("process 8420"),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "get_process",
+        pid: 8420,
+      },
+    });
+
+    expect(
+      parseRangeCommand("service AcmeBackupAgent"),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "get_service",
+        name: "AcmeBackupAgent",
+      },
+    });
   });
 
   it("compiles time-aware host history queries without shell execution", () => {
@@ -84,6 +104,19 @@ describe("Range command parser", () => {
           "/Quarantine/finance-update.ps1",
       },
     });
+
+    expect(
+      parseRangeCommand(
+        "set-startup AcmeBackupAgent disabled",
+      ),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "set_service_startup_mode",
+        name: "AcmeBackupAgent",
+        startupMode: "disabled",
+      },
+    });
   });
 
   it("supports quoted arguments and rejects unknown or malformed input", () => {
@@ -107,6 +140,18 @@ describe("Range command parser", () => {
       parseRangeCommand("kill powershell"),
     ).toThrow(
       "Range command kill requires a positive integer pid.",
+    );
+    expect(() =>
+      parseRangeCommand("process powershell"),
+    ).toThrow(
+      "Range command process requires a positive integer pid.",
+    );
+    expect(() =>
+      parseRangeCommand(
+        "set-startup AcmeBackupAgent on-demand",
+      ),
+    ).toThrow(
+      "Range command set-startup requires automatic, manual, or disabled; received: on-demand.",
     );
     expect(() =>
       parseRangeCommand("cat 'unterminated"),

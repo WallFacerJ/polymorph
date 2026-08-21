@@ -20,9 +20,11 @@ Structured Range acquisition is an explicit domain boundary rather than saved te
 
 Synthetic hosts also expose an explicit relationship layer. Process ancestry, account ownership, and process-owned network objects are derived only from authoritative IDs already present in host state. Process-to-file and service/process-to-configuration relationships are declaratively authored and endpoint-validated. Range exposes relationship-aware process investigation and safe pivots, acquired artifacts retain their source neighborhood, and Case derives artifact-to-artifact lineage from shared source objects. Live containment can mutate process/network state without rewriting previously acquired historical lineage.
 
-Range now also has an immutable time-aware host-activity layer separate from live mutable state. Scenario compilation derives only exact lifecycle facts it already owns from authoritative process/file timestamps and exact canonical network tuples, merges those facts with optional endpoint-validated authored activity, and exposes deterministic history queries with process/file/service/configuration/connection filtering. History acquisitions retain the immutable activity snapshot, source-object refs, explicit start/end bounds, relationship lineage, and network indicators. Containment can terminate a process and close its current connection without rewriting prior process/network activity, and reset reconstructs the authored/derived history deterministically.
+Range now also has an immutable time-aware host-activity layer separate from live mutable state. Scenario compilation derives only exact lifecycle facts it already owns from authoritative process/file timestamps and exact canonical network tuples, merges those facts with optional endpoint-validated authored activity, and exposes deterministic history queries with process/file/service/configuration/connection filtering. History acquisitions retain the immutable activity snapshot, source-object refs, explicit start/end bounds, relationship lineage, and network indicators. Containment can terminate a process and close its current connection without rewriting prior process/network activity, and reset reconstructs the authored/derived history deterministically. Host history is Range control-plane evidence and is intentionally not modeled as an operating-system capability on the synthetic host.
 
-The next Stage 2A milestone is no longer basic event plumbing, evidence capture, first-order host graphing, or first-pass host history. It should deepen service/persistence lifecycle, broaden plausible benign host activity, expand response operations in system context, and make the Case graph easier to navigate without turning source facts into conclusions. Stage 2B can then add isolated container-backed assets where real operating-system/service behavior creates material investigative value.
+Service lifecycle now distinguishes current runtime state from persistence policy. Range can change a modeled service startup mode through the controlled `set-startup` command while leaving its running/stopped state unchanged. Material startup-policy changes emit typed canonical `HOST_SERVICE_STARTUP_MODE_CHANGED` events with previous/current values, appear in SIEM and EDR Range response history, validate as material changes, and replay/reset deterministically. Historical startup-policy facts remain immutable rather than being rewritten by live response operations.
+
+The next Stage 2A milestone is no longer basic event plumbing, evidence capture, first-order host graphing, first-pass host history, or service startup-policy plumbing. It should broaden plausible benign host activity and competing explanations, deepen file/configuration/recovery lifecycle where that creates investigation value, expand response operations in system context, and make the Case graph easier to navigate without turning source facts into conclusions. Stage 2B should then establish a runtime-provider boundary and add one isolated container-backed asset where real operating-system/service behavior creates material investigative value.
 
 Residual Phase 1 work such as professional-mode objective/score presentation and further response-workflow polish remains valid, but it should not block the Range foundation.
 
@@ -90,9 +92,11 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - relationship endpoint/duplicate validation in scenario compilation and core scenario validation
 - relationship-aware process/service investigation helpers
 - immutable artifact source refs and relationship snapshots used for deterministic Case artifact lineage
-- immutable typed synthetic-host activity facts for process lifecycle, file activity, service state, configuration changes, and network connection lifecycle
+- immutable typed synthetic-host activity facts for process lifecycle, file activity, service state, service startup policy, configuration changes, and network connection lifecycle
 - deterministic host-history ordering/filtering and exact source-object reference resolution
 - immutable history artifacts with activity bounds, source refs, lineage, and network indicators
+- controlled service startup-policy mutation kept separate from service runtime status
+- canonical service startup-policy response events projected coherently into SIEM and EDR
 
 ### Declarative scenario runtime
 
@@ -102,6 +106,7 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - optional declarative synthetic hosts validated against canonical Fabric device IDs
 - optional declarative synthetic-host process/file/service/configuration relationships with strict endpoint validation
 - optional declarative synthetic-host activity merged with exact compiler-derived lifecycle/network facts
+- authored service startup-policy history with strict endpoint and material-change validation
 - strict activity ID, timestamp, and host-object endpoint validation before analyst use
 - ordered opening event history
 - ordered deterministic response actions
@@ -119,7 +124,7 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - EDR workspace with endpoint inventory, process trees, file/network context, endpoint history, Case/SIEM pivots, endpoint-scoped response operations, Range pivots for authored hosts, and Range response history
 - Identity workspace with account inventory, provider/status, roles, authentication provenance, sessions, access history, Case/SIEM pivots, and identity-scoped containment
 - Case incident-command workspace with evidence provenance, deterministic indicators/entities, hypotheses, tasks/owners/status, incident phase, findings, response-decision history, source-tool pivots, generated incident reporting, explicit Range artifact provenance/integrity, source refs, and artifact-to-artifact lineage
-- Range synthetic-host workspace with a fixed safe command vocabulary compiled into structured host commands, deterministic command/audit history, live host inspection, time-aware host-history queries, relationship-aware process context, safe staged pivots, validated process/service/file mutations, professional artifact acquisition into Case, immutable acquisition state, and exact reset
+- Range synthetic-host workspace with a fixed safe command vocabulary compiled into structured host commands, deterministic command/audit history, live host inspection, time-aware host-history queries, relationship-aware process context, safe staged pivots, validated process/service/file mutations, separate service runtime/startup-policy controls, professional artifact acquisition into Case, immutable acquisition state, and exact reset
 - evidence collection by shared event ID across tools
 - explicit finalization, deterministic outcome/score, and finalized read-only investigation state
 - instructor ground-truth review
@@ -182,15 +187,19 @@ Implemented:
 30. Range exposes controlled `history` queries and safe relationship/history pivots without arbitrary shell execution;
 31. history results acquire into Case as immutable typed `history` artifacts carrying source refs, explicit time bounds, relationship lineage, and network indicators;
 32. default `FIN-LT-04` history mixes benign Teams activity with the suspicious Word/PowerShell/network chain so analysts can compare competing explanations over time;
-33. containment changes live process/network state without rewriting authored/derived activity, and unit/browser coverage verifies filtering, acquisition, reset, validation, and history preservation.
+33. containment changes live process/network state without rewriting authored/derived activity, and unit/browser coverage verifies filtering, acquisition, reset, validation, and history preservation;
+34. host history is a Range control-plane evidence surface rather than a synthetic operating-system capability;
+35. service startup policy is modeled separately from service runtime state in both live host state and immutable historical activity;
+36. controlled `set-startup` operations change startup policy without implicitly starting/stopping services and emit canonical `HOST_SERVICE_STARTUP_MODE_CHANGED` events only for material changes;
+37. service startup-policy events carry exact previous/current values into validation, SIEM searchable fields/messages, EDR Range response history, deterministic replay, and reset behavior.
 
 ## Immediate implementation priorities
 
 1. Increase default-scenario host-side ambiguity beyond the first history pass: add more normal processes, files, logs, connections, service activity, and plausible competing explanations without scripted command-following.
-2. Deepen lifecycle semantics where they materially improve investigation: service transitions, persistence/configuration changes, file lifecycle, and recovery validation over time.
+2. Deepen file/configuration/recovery lifecycle where it materially improves investigation, including validation that eradication and recovery change system state without rewriting historical facts.
 3. Make more incident response happen in host/system context and ensure every material change remains explainable through canonical history.
 4. Add richer artifact/entity graph workflows in Case, including analyst-friendly pivots, filtering, and eventual graph query/navigation without turning source facts into conclusions.
-5. Define the Stage 2B runtime-provider contract so synthetic and container-backed assets can expose a compatible higher-level Range investigation interface.
+5. Define the Stage 2B runtime-provider contract so synthetic and container-backed assets expose a compatible higher-level Range investigation interface.
 6. Introduce one ephemeral container-backed Linux/service asset only after isolation, resource/time limits, teardown, and telemetry instrumentation are explicit and testable.
 7. Add microVM/full-VM fidelity later for Windows/AD/appliance scenarios that cannot be represented credibly with lower-fidelity assets.
 
@@ -218,7 +227,7 @@ Earlier project guidance intentionally deferred heavy infrastructure until a dem
 
 Therefore:
 
-- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser, evidence, relationship, lineage, and time-aware history implementation;
+- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser, evidence, relationship, lineage, time-aware history, and service-persistence implementation;
 - container-backed and eventually VM-backed range infrastructure is explicitly in scope;
 - a server runtime and database are explicitly in scope;
 - orchestration, queues, caches, search engines, and service decomposition may be introduced when measured scale/reliability requirements justify them;

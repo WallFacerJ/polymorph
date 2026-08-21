@@ -93,6 +93,14 @@ const activity: readonly SyntheticHostActivity[] = [
     action: "opened",
     processId: 8420,
   },
+  {
+    id: "activity-service-startup",
+    timestamp: "2026-08-20T15:04:00Z",
+    type: "service_startup_mode",
+    serviceName: "AcmeBackupAgent",
+    previousStartupMode: "manual",
+    startupMode: "automatic",
+  },
 ];
 
 describe("synthetic host activity history", () => {
@@ -132,6 +140,31 @@ describe("synthetic host activity history", () => {
         id: "8420",
       },
     ]);
+
+    expect(
+      getSyntheticHostActivityRefs(activity[3]),
+    ).toEqual([
+      {
+        kind: "service",
+        id: "AcmeBackupAgent",
+      },
+    ]);
+  });
+
+  it("filters service startup-mode history independently from service current state", () => {
+    const result = querySyntheticHostActivity(
+      activity,
+      {
+        ref: {
+          kind: "service",
+          id: "AcmeBackupAgent",
+        },
+      },
+    );
+
+    expect(result).toEqual([
+      activity[3],
+    ]);
   });
 
   it("rejects missing endpoints and ownership contradictions", () => {
@@ -170,6 +203,44 @@ describe("synthetic host activity history", () => {
       ),
     ).toThrow(
       "Synthetic host activity wrong-owner references missing process pid: 9999",
+    );
+
+    expect(() =>
+      validateSyntheticHostActivity(
+        host,
+        [
+          {
+            id: "missing-service",
+            timestamp: "2026-08-20T15:04:00Z",
+            type: "service_startup_mode",
+            serviceName: "MissingAgent",
+            previousStartupMode: "manual",
+            startupMode: "automatic",
+          },
+        ],
+      ),
+    ).toThrow(
+      "Synthetic host activity missing-service references missing service: MissingAgent",
+    );
+  });
+
+  it("rejects startup-mode history that does not actually change mode", () => {
+    expect(() =>
+      validateSyntheticHostActivity(
+        createHost(),
+        [
+          {
+            id: "unchanged-startup-mode",
+            timestamp: "2026-08-20T15:04:00Z",
+            type: "service_startup_mode",
+            serviceName: "AcmeBackupAgent",
+            previousStartupMode: "automatic",
+            startupMode: "automatic",
+          },
+        ],
+      ),
+    ).toThrow(
+      "Synthetic host activity unchanged-startup-mode service startup mode must change.",
     );
   });
 
