@@ -415,6 +415,31 @@ export function CaseWorkspace({
                       )}
                     </div>
 
+                    {record.artifact && (
+                      <div
+                        className="case-evidence-context"
+                        aria-label="Range artifact provenance"
+                      >
+                        <span className="case-indicator-chip">
+                          artifact: {record.artifact.artifactId}
+                        </span>
+                        <span className="case-indicator-chip">
+                          source: {record.artifact.sourceReference}
+                        </span>
+                        <span className="case-indicator-chip">
+                          acquired: {formatTimestamp(record.artifact.acquiredAt)}
+                        </span>
+                        <span className="case-indicator-chip">
+                          method: {readableStatus(record.artifact.acquisitionMethod)}
+                        </span>
+                        <span className="case-indicator-chip">
+                          integrity: {record.artifact.integrity.status === "authored"
+                            ? `${record.artifact.integrity.algorithm} ${record.artifact.integrity.value}`
+                            : "unavailable (source did not provide integrity)"}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="case-evidence-actions">
                       <button
                         type="button"
