@@ -52,6 +52,17 @@ export function resolveScenarioPath(
   return DEFAULT_SCENARIO_PATH;
 }
 
+function resolveHostedScenarioPath(
+  path: string,
+): string {
+  const relativePath =
+    path.startsWith("/")
+      ? path.slice(1)
+      : path;
+
+  return `${import.meta.env.BASE_URL}${relativePath}`;
+}
+
 export function compileScenarioPayload(
   input: unknown,
 ): ScenarioDefinition {
@@ -66,9 +77,12 @@ export function compileScenarioPayload(
 export async function loadScenario(
   path: string,
 ): Promise<ScenarioDefinition> {
-  const response = await fetch(path, {
-    cache: "no-store",
-  });
+  const response = await fetch(
+    resolveHostedScenarioPath(path),
+    {
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(
