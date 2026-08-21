@@ -36,6 +36,10 @@ import {
 } from "./EdrWorkspace";
 
 import {
+  EdrHostActivityPanel,
+} from "./EdrHostActivityPanel";
+
+import {
   IdentityWorkspace,
 } from "./IdentityWorkspace";
 
@@ -51,17 +55,21 @@ import {
   addAnalystFinding,
   collectAnalystEvidence,
   createAnalystCaseState,
+  createRangeEvidenceEvent,
+  edrHostActivityProjection,
   edrProjection,
   finalizeScenarioState,
   getScenarioState,
   identityProjection,
+  mergeSimulationEventHistory,
   rebuildProjection,
-  replaySyntheticHostCommands,
+  replayRangeCommandsWithEvents,
   siemProjection,
 } from "./simulationAdapter";
 
 import type {
   ScenarioDefinition,
+  SimulationEvent,
   SyntheticHostCommand,
   SyntheticHostCommandInvocation,
 } from "./simulationAdapter";
@@ -154,6 +162,8 @@ function ScenarioWorkspace({
     useState(context.deviceId);
   const [rangeInvocations, setRangeInvocations] =
     useState<SyntheticHostCommandInvocation[]>([]);
+  const [rangeEvidenceEvents, setRangeEvidenceEvents] =
+    useState<SimulationEvent[]>([]);
 
   const scenarioState = useMemo(
     () =>
@@ -173,24 +183,6 @@ function ScenarioWorkspace({
     ],
   );
 
-  const projections = useMemo(
-    () => ({
-      identity: rebuildProjection(
-        identityProjection,
-        scenarioState.events,
-      ),
-      edr: rebuildProjection(
-        edrProjection,
-        scenarioState.events,
-      ),
-      siem: rebuildProjection(
-        siemProjection,
-        scenarioState.events,
-      ),
-    }),
-    [scenarioState.events],
-  );
-
   const rangeInitialHost = useMemo(
     () =>
       (scenario.syntheticHosts ?? []).find(
@@ -203,12 +195,48 @@ function ScenarioWorkspace({
   const rangeReplay = useMemo(
     () =>
       rangeInitialHost
-        ? replaySyntheticHostCommands(
+        ? replayRangeCommandsWithEvents(
             rangeInitialHost,
             rangeInvocations,
           )
         : null,
     [rangeInitialHost, rangeInvocations],
+  );
+
+  const canonicalEvents = useMemo(
+    () =>
+      mergeSimulationEventHistory(
+        scenarioState.events,
+        rangeReplay?.events ?? [],
+        rangeEvidenceEvents,
+      ),
+    [
+      scenarioState.events,
+      rangeReplay,
+      rangeEvidenceEvents,
+    ],
+  );
+
+  const projections = useMemo(
+    () => ({
+      identity: rebuildProjection(
+        identityProjection,
+        canonicalEvents,
+      ),
+      edr: rebuildProjection(
+        edrProjection,
+        canonicalEvents,
+      ),
+      edrHost: rebuildProjection(
+        edrHostActivityProjection,
+        canonicalEvents,
+      ),
+      siem: rebuildProjection(
+        siemProjection,
+        canonicalEvents,
+      ),
+    }),
+    [canonicalEvents],
   );
 
   const user =
@@ -283,7 +311,7 @@ function ScenarioWorkspace({
       collectAnalystEvidence(
         current,
         eventId,
-        scenarioState.events,
+        canonicalEvents,
       ),
     );
   };
@@ -328,7 +356,7 @@ function ScenarioWorkspace({
           evidenceEventIds:
             selectedEvidenceIds,
         },
-        scenarioState.events,
+        canonicalEvents,
       );
 
       setAnalystCase(next);
@@ -410,20 +438,20 @@ function ScenarioWorkspace({
       return `No synthetic host is authored for device ${rangeDeviceId}.`;
     }
 
-    const baseTimestamp =
+    const latestTimestamp =
+      canonicalEvents.at(-1)?.timestamp ??
       scenario.openingEvents.at(-1)?.timestamp ??
       scenario.initialWorld.simulationTime;
     const invocation: SyntheticHostCommandInvocation = {
       id: `range-command-${rangeInvocations.length + 1}`,
       timestamp: new Date(
-        Date.parse(baseTimestamp) +
-          (rangeInvocations.length + 1) * 1000,
+        Date.parse(latestTimestamp) + 1000,
       ).toISOString(),
       command,
     };
 
     try {
-      replaySyntheticHostCommands(
+      replayRangeCommandsWithEvents(
         rangeInitialHost,
         [
           ...rangeInvocations,
@@ -434,6 +462,81 @@ function ScenarioWorkspace({
         ...current,
         invocation,
       ]);
+      return null;
+    } catch (caught: unknown) {
+      return caught instanceof Error
+        ? caught.message
+        : String(caught);
+    }
+  };
+
+  const collectRangeExecution = (
+    executionIndex: number,
+  ): string | null => {
+    if (scenarioState.finalized) {
+      return "The finalized run is read-only. Reset the scenario to collect new Range evidence.";
+    }
+
+    if (!rangeInitialHost || !rangeReplay) {
+      return "No active synthetic host execution is available.";
+    }
+
+    const invocation = rangeInvocations[executionIndex];
+    const execution = rangeReplay.executions[executionIndex];
+
+    if (!invocation || !execution) {
+      return "Range execution is unavailable.";
+    }
+
+    const evidenceId = `${invocation.id}-evidence`;
+
+    if (
+      rangeEvidenceEvents.some(
+        (event) => event.id === evidenceId,
+      )
+    ) {
+      return null;
+    }
+
+    try {
+      const latestTimestamp =
+        canonicalEvents.at(-1)?.timestamp ??
+        invocation.timestamp;
+      const evidenceEvent =
+        createRangeEvidenceEvent({
+          id: evidenceId,
+          timestamp: new Date(
+            Math.max(
+              Date.parse(latestTimestamp),
+              Date.parse(invocation.timestamp),
+            ) + 1,
+          ).toISOString(),
+          deviceId: rangeInitialHost.deviceId,
+          invocation,
+          execution,
+        });
+      const nextRangeEvidenceEvents = [
+        ...rangeEvidenceEvents,
+        evidenceEvent,
+      ];
+      const nextHistory =
+        mergeSimulationEventHistory(
+          scenarioState.events,
+          rangeReplay.events,
+          nextRangeEvidenceEvents,
+        );
+
+      setRangeEvidenceEvents(
+        nextRangeEvidenceEvents,
+      );
+      setAnalystCase((current) =>
+        collectAnalystEvidence(
+          current,
+          evidenceEvent.id,
+          nextHistory,
+        ),
+      );
+      setCaseError(null);
       return null;
     } catch (caught: unknown) {
       return caught instanceof Error
@@ -453,6 +556,7 @@ function ScenarioWorkspace({
     setSelectedEvidenceIds([]);
     setCaseError(null);
     setRangeInvocations([]);
+    setRangeEvidenceEvents([]);
     setRangeDeviceId(context.deviceId);
     setActiveView("alerts");
   };
@@ -798,6 +902,11 @@ function ScenarioWorkspace({
               )}
               onOpenRange={openRange}
             />
+            <EdrHostActivityPanel
+              state={projections.edrHost}
+              deviceId={context.deviceId}
+              onSearchSiem={openSiem}
+            />
           </section>
         )}
 
@@ -831,6 +940,13 @@ function ScenarioWorkspace({
                 executions={rangeReplay.executions}
                 finalized={scenarioState.finalized}
                 onExecute={executeRangeCommand}
+                isExecutionCollected={(invocationId) =>
+                  rangeEvidenceEvents.some(
+                    (event) =>
+                      event.id === `${invocationId}-evidence`,
+                  )
+                }
+                onCollectExecution={collectRangeExecution}
               />
             ) : (
               <div className="case-empty">
@@ -846,7 +962,7 @@ function ScenarioWorkspace({
               scenarioId={scenario.id}
               scenarioName={scenario.name}
               state={analystCase}
-              events={scenarioState.events}
+              events={canonicalEvents}
               actions={responseActions}
               performedActionIds={scenarioState.performedActionIds}
               outcome={scenarioState.outcome}
