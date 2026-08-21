@@ -127,6 +127,31 @@ describe("synthetic host activity history", () => {
     });
   });
 
+  it("orders mixed timestamp precision by instant rather than source text", () => {
+    const result = querySyntheticHostActivity([
+      {
+        id: "fractional-later",
+        timestamp: "2026-08-20T15:04:00.250Z",
+        type: "service_state",
+        serviceName: "AcmeBackupAgent",
+        status: "running",
+      },
+      {
+        id: "whole-second-earlier",
+        timestamp: "2026-08-20T15:04:00Z",
+        type: "service_startup_mode",
+        serviceName: "AcmeBackupAgent",
+        previousStartupMode: "manual",
+        startupMode: "automatic",
+      },
+    ]);
+
+    expect(result.map((record) => record.id)).toEqual([
+      "whole-second-earlier",
+      "fractional-later",
+    ]);
+  });
+
   it("exposes exact source refs without inferring extra causality", () => {
     expect(
       getSyntheticHostActivityRefs(activity[1]),
