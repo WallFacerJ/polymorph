@@ -40,6 +40,7 @@ export function createRangeArtifactEvidenceEvent(
       deviceId: artifact.deviceId,
       evidenceKind: artifact.kind,
       artifactId: artifact.id,
+      artifact: structuredClone(artifact),
       sourceInvocationId: artifact.invocationId,
       acquisitionMethod:
         artifact.acquisitionMethod,
