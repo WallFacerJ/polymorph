@@ -20,6 +20,7 @@ import type {
 } from "./syntheticHost";
 
 import {
+  deriveSyntheticHostActivity,
   sortSyntheticHostActivity,
   validateSyntheticHostActivity,
 } from "./syntheticHostActivity";
@@ -209,7 +210,15 @@ function compileSyntheticHosts(
     seenDeviceIds.add(seed.deviceId);
 
     return createSyntheticHostState(
-      seed,
+      {
+        ...seed,
+        capabilities: [
+          ...new Set([
+            ...(seed.capabilities ?? []),
+            "read:history" as const,
+          ]),
+        ],
+      },
       initialWorld,
     );
   });
@@ -269,9 +278,13 @@ function compileSyntheticHostActivity(
       );
     }
 
-    const records = sortSyntheticHostActivity(
-      seed.activity ?? [],
-    );
+    const records = sortSyntheticHostActivity([
+      ...deriveSyntheticHostActivity(
+        host,
+        input.openingEvents,
+      ),
+      ...(seed.activity ?? []),
+    ]);
 
     validateSyntheticHostActivity(
       host,
