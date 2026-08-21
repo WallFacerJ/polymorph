@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export * from "./scenario";
 export * from "./scenarioObjective";
+export * from "./syntheticHost";
 
 export const componentTypeSchema = z.enum([
   "stat_card",
