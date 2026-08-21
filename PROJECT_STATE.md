@@ -12,9 +12,11 @@ Polymorph remains for synthetic, isolated security simulation. It must not becom
 
 **Enterprise Evolution Phase 2: Synthetic Infrastructure Fabric and Range.**
 
-The core Phase 1 professional-tool reset is now implemented enough to move forward. SIEM, EDR, Identity, and Case are distinct investigation applications over the same deterministic run rather than shallow panels over curated telemetry.
+The core Phase 1 professional-tool reset is implemented enough to move forward. SIEM, EDR, Identity, and Case are distinct investigation applications over the same deterministic run rather than shallow panels over curated telemetry.
 
-The next product gap is no longer primarily UI depth. Analysts need systems they can actually enter and inspect. The active milestone is therefore Stage 2A of the Synthetic Infrastructure Fabric: deterministic synthetic hosts attached to Fabric assets, exposed through a controlled investigation command surface, with every host mutation and observation remaining replayable and coherent with the shared event history.
+Stage 2A now has its first end-to-end implementation: deterministic synthetic-host state is attached to canonical Fabric devices, authored in scenario JSON, replayed through a capability-gated command runtime, and exposed in a distinct Range workspace. The account-compromise scenario can pivot from EDR into `FIN-LT-04`, inspect coherent process/file/log/network state, perform validated host mutations, and reset to the exact authored state without executing commands on the real browser/runner operating system.
+
+The next Range milestone is to bridge host observations and mutations into the shared canonical event/evidence model so SIEM, EDR, Case, and Range can explain the same analyst-driven host changes. After that contract is proven, container-backed isolated assets can be introduced only where real operating-system/service behavior is justified.
 
 Residual Phase 1 work such as professional-mode objective/score presentation and further response-workflow polish remains valid, but it should not block the Range foundation.
 
@@ -71,12 +73,16 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - EDR projection
 - SIEM projection
 - cross-projection coherence tests over shared event IDs/entity IDs
+- deterministic synthetic-host state for filesystem, processes, services, local identity, configuration, logs, listeners, and connections
+- capability-gated structured host commands with immutable results and audit records
+- synthetic-host replay, reset, and serialization/deserialization
 
 ### Declarative scenario runtime
 
 - versioned Zod-backed JSON scenario contract
 - semantic scenario compiler
 - author-friendly world seeds compiled into canonical world state
+- optional declarative synthetic hosts validated against canonical Fabric device IDs
 - ordered opening event history
 - ordered deterministic response actions
 - investigation focus metadata
@@ -84,15 +90,16 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - deterministic active/finalized outcome evaluation
 - deterministic scoring and response-quality penalties
 - optional ground-truth incident metadata
-- semantic validation of response actions, objectives, and ground-truth references
+- semantic validation of response actions, objectives, ground-truth references, and synthetic-host attachments
 
 ### Professional investigation surface
 
 - alert-first investigation entry point and correlated timeline
 - SIEM workspace with deterministic search/query, facets, time controls, raw event detail, saved searches, and exact pivots
-- EDR workspace with endpoint inventory, process trees, file/network context, endpoint history, Case/SIEM pivots, and endpoint-scoped response operations
+- EDR workspace with endpoint inventory, process trees, file/network context, endpoint history, Case/SIEM pivots, endpoint-scoped response operations, and Range pivots for authored hosts
 - Identity workspace with account inventory, provider/status, roles, authentication provenance, sessions, access history, Case/SIEM pivots, and identity-scoped containment
 - Case incident-command workspace with evidence provenance, deterministic indicators/entities, hypotheses, tasks/owners/status, incident phase, findings, response-decision history, source-tool pivots, and generated incident reporting
+- Range synthetic-host workspace with a fixed safe command vocabulary compiled into structured host commands, deterministic command/audit history, live host inspection, validated process/service/file mutations, and exact reset
 - evidence collection by shared event ID across tools
 - explicit finalization, deterministic outcome/score, and finalized read-only investigation state
 - instructor ground-truth review
@@ -119,15 +126,28 @@ Remaining follow-up:
 - continue moving any remaining answer-card-like response work into operational context;
 - increase default-scenario investigation depth as new Fabric/telemetry capabilities arrive.
 
+## Phase 2A implementation checkpoint
+
+Implemented:
+
+1. deterministic synthetic-host state attached to canonical Fabric devices;
+2. filesystem/process/service/local-identity/config/log/network host models;
+3. controlled read and mutation commands with explicit capabilities and no arbitrary shell execution;
+4. deterministic command audit, replay, reset, and serialization;
+5. declarative scenario-authored synthetic hosts with compiler validation;
+6. first coherent `FIN-LT-04` host aligned with existing EDR process/file/network telemetry;
+7. EDR-to-Range pivot and terminal-like Range workspace;
+8. browser coverage for host inspection, safe-command rejection, mutation, and reset.
+
 ## Immediate implementation priorities
 
-1. Define a deterministic synthetic-host state model attached to Fabric devices/assets: filesystem, processes, services, users/groups, configuration, local logs, listeners, and connections.
-2. Add a controlled host investigation command API that can inspect and mutate only validated synthetic host state; no arbitrary host-shell execution.
-3. Record host observations/actions into deterministic run history so SIEM, EDR, Case, and future projections can explain the same causal system changes.
-4. Add host snapshots/reset and prove identical replay from the same initial state plus analyst command sequence.
-5. Build the first Range workspace/terminal-like client over that command API and support evidence acquisition into Case.
-6. Integrate one existing scenario end-to-end so an analyst can pivot from an alert into a synthetic host, inspect artifacts/processes/configuration, collect evidence, take containment action, and see coherent telemetry updates.
-7. Only after Stage 2A proves the abstraction, introduce ephemeral container-backed assets for scenarios that genuinely need real Linux/service behavior.
+1. Represent Range observations and analyst host mutations in canonical deterministic run history without turning command text into arbitrary executable events.
+2. Make host-derived observations collectable into Case with explicit Range provenance while preserving event/entity traceability.
+3. Project analyst-driven host changes coherently into SIEM/EDR where the domain semantics support them.
+4. Harden host lifecycle semantics such as process-associated connection/listener cleanup and service/process relationships.
+5. Expand authored synthetic-host coverage only where scenarios gain meaningful hands-on investigation depth.
+6. Introduce ephemeral container-backed Linux/service assets only after the synthetic-host/event bridge proves the higher-level Range contract.
+7. Add microVM/full-VM fidelity later for Windows/AD/appliance scenarios that cannot be represented credibly with lower-fidelity assets.
 
 ## Enterprise requirements are now first-class
 
@@ -153,7 +173,7 @@ Earlier project guidance intentionally deferred heavy infrastructure until a dem
 
 Therefore:
 
-- deterministic synthetic-host infrastructure is the immediate next fidelity layer;
+- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser implementation;
 - container-backed and eventually VM-backed range infrastructure is explicitly in scope;
 - a server runtime and database are explicitly in scope;
 - orchestration, queues, caches, search engines, and service decomposition may be introduced when measured scale/reliability requirements justify them;

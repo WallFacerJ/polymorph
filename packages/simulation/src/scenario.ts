@@ -32,6 +32,10 @@ import type {
   WorldState,
 } from "./worldState";
 
+import type {
+  SyntheticHostState,
+} from "./syntheticHost";
+
 import {
   validateWorldState,
 } from "./worldValidation";
@@ -92,6 +96,9 @@ export interface ScenarioDefinition {
   description: string;
 
   initialWorld: WorldState;
+
+  syntheticHosts?:
+    readonly SyntheticHostState[];
 
   openingEvents: readonly SimulationEvent[];
 
