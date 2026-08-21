@@ -154,6 +154,15 @@
           "classification": "internal",
           "ownerUserId": "user-sarah-martinez",
           "deviceId": "device-fin-lt-04"
+        },
+        {
+          "id": "file-fin-backup-health-script",
+          "organizationId": "org-acme",
+          "name": "backup-health.ps1",
+          "path": "C:\\ProgramData\\Acme\\IT\\backup-health.ps1",
+          "classification": "internal",
+          "ownerUserId": "user-mark-chen",
+          "deviceId": "device-fin-lt-04"
         }
       ],
       "applications": [
@@ -438,6 +447,67 @@
         }
       },
       {
+        "id": "event-fin-wsmprovhost-7200",
+        "type": "PROCESS_STARTED",
+        "timestamp": "2026-08-20T14:56:00Z",
+        "source": "edr",
+        "actorId": "account-mchen",
+        "subjectId": "device-fin-lt-04",
+        "payload": {
+          "deviceId": "device-fin-lt-04",
+          "processId": "7200",
+          "image": "C:\\Windows\\System32\\wsmprovhost.exe",
+          "commandLine": "wsmprovhost.exe -Embedding",
+          "accountId": "account-mchen"
+        }
+      },
+      {
+        "id": "event-fin-powershell-7300",
+        "type": "PROCESS_STARTED",
+        "timestamp": "2026-08-20T14:56:02Z",
+        "source": "edr",
+        "actorId": "account-mchen",
+        "subjectId": "device-fin-lt-04",
+        "payload": {
+          "deviceId": "device-fin-lt-04",
+          "processId": "7300",
+          "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+          "commandLine": "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File C:\\ProgramData\\Acme\\IT\\backup-health.ps1",
+          "parentProcessId": "7200",
+          "accountId": "account-mchen"
+        }
+      },
+      {
+        "id": "event-fin-backup-health-executed",
+        "type": "FILE_ACCESSED",
+        "timestamp": "2026-08-20T14:56:03Z",
+        "source": "edr",
+        "actorId": "account-mchen",
+        "subjectId": "device-fin-lt-04",
+        "payload": {
+          "fileId": "file-fin-backup-health-script",
+          "operation": "execute",
+          "deviceId": "device-fin-lt-04",
+          "accountId": "account-mchen"
+        }
+      },
+      {
+        "id": "event-fin-admin-health-network",
+        "type": "NETWORK_CONNECTION",
+        "timestamp": "2026-08-20T14:56:05Z",
+        "source": "edr",
+        "actorId": "account-mchen",
+        "subjectId": "device-fin-lt-04",
+        "payload": {
+          "deviceId": "device-fin-lt-04",
+          "protocol": "tcp",
+          "sourceIp": "10.20.30.44",
+          "destinationIp": "10.20.40.15",
+          "sourcePort": 49680,
+          "destinationPort": 443
+        }
+      },
+      {
         "id": "noise-network-it-rdp",
         "type": "NETWORK_CONNECTION",
         "timestamp": "2026-08-20T14:56:14Z",
@@ -523,6 +593,22 @@
           "ipAddresses": [
             "10.20.20.57"
           ]
+        }
+      },
+      {
+        "id": "event-fin-browser-4520",
+        "type": "PROCESS_STARTED",
+        "timestamp": "2026-08-20T14:59:50Z",
+        "source": "edr",
+        "actorId": "account-smartinez",
+        "subjectId": "device-fin-lt-04",
+        "payload": {
+          "deviceId": "device-fin-lt-04",
+          "processId": "4520",
+          "image": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+          "commandLine": "msedge.exe --profile-directory=Default",
+          "parentProcessId": "1020",
+          "accountId": "account-smartinez"
         }
       },
       {
@@ -845,6 +931,26 @@
         ],
         "files": [
           {
+            "path": "/Users/smartinez/Documents/Q3-forecast.xlsx",
+            "content": "Synthetic Q3 forecast workbook content for the Finance user's normal workday.",
+            "owner": "smartinez",
+            "group": "Users",
+            "mode": "rw-r--r--",
+            "createdAt": "2026-08-20T14:40:00Z",
+            "modifiedAt": "2026-08-20T14:54:03Z",
+            "quarantined": false
+          },
+          {
+            "path": "/ProgramData/Acme/IT/backup-health.ps1",
+            "content": "$svc = Get-Service AcmeBackupAgent\nSet-Service -Name AcmeBackupAgent -StartupType Automatic\nInvoke-RestMethod -Uri https://10.20.40.15/ops/backup-health -Method Post -Body @{ status = $svc.Status }",
+            "owner": "localadmin",
+            "group": "Administrators",
+            "mode": "rw-r--r--",
+            "createdAt": "2026-08-19T18:00:00Z",
+            "modifiedAt": "2026-08-19T18:02:11Z",
+            "quarantined": false
+          },
+          {
             "path": "/Users/smartinez/Downloads/QuarterlyReview.docm",
             "content": "Synthetic macro-enabled quarterly review document used by the incident scenario.",
             "sha256": "4a7fdc7f3d8be6c1a911d6f407e82f9f812a2ec71bf1d7fd925f6dfd5320b4f3",
@@ -892,6 +998,34 @@
             "accountId": "account-smartinez",
             "state": "running",
             "startedAt": "2026-08-20T14:53:18Z"
+          },
+          {
+            "pid": 7200,
+            "image": "C:\\Windows\\System32\\wsmprovhost.exe",
+            "commandLine": "wsmprovhost.exe -Embedding",
+            "accountId": "account-mchen",
+            "state": "terminated",
+            "startedAt": "2026-08-20T14:56:00Z",
+            "terminatedAt": "2026-08-20T14:56:09Z"
+          },
+          {
+            "pid": 7300,
+            "image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "commandLine": "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File C:\\ProgramData\\Acme\\IT\\backup-health.ps1",
+            "parentPid": 7200,
+            "accountId": "account-mchen",
+            "state": "terminated",
+            "startedAt": "2026-08-20T14:56:02Z",
+            "terminatedAt": "2026-08-20T14:56:08Z"
+          },
+          {
+            "pid": 4520,
+            "image": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+            "commandLine": "msedge.exe --profile-directory=Default",
+            "parentPid": 1020,
+            "accountId": "account-smartinez",
+            "state": "running",
+            "startedAt": "2026-08-20T14:59:50Z"
           },
           {
             "pid": 6172,
@@ -966,6 +1100,20 @@
         },
         "relationships": [
           {
+            "id": "rel-admin-powershell-backup-health",
+            "type": "process_file",
+            "processId": 7300,
+            "filePath": "/ProgramData/Acme/IT/backup-health.ps1",
+            "operation": "execute"
+          },
+          {
+            "id": "rel-admin-powershell-backup-startup",
+            "type": "process_configuration",
+            "processId": 7300,
+            "key": "HKLM/System/CurrentControlSet/Services/AcmeBackupAgent/Start",
+            "purpose": "startup"
+          },
+          {
             "id": "rel-winword-quarterly-review",
             "type": "process_file",
             "processId": 6172,
@@ -994,7 +1142,82 @@
             "purpose": "policy"
           }
         ],
+        "activity": [
+          {
+            "id": "activity-admin-backup-script-executed",
+            "timestamp": "2026-08-20T14:56:03Z",
+            "type": "file_activity",
+            "filePath": "/ProgramData/Acme/IT/backup-health.ps1",
+            "operation": "execute",
+            "processId": 7300
+          },
+          {
+            "id": "activity-backup-service-observed-running",
+            "timestamp": "2026-08-20T14:56:03.500Z",
+            "type": "service_state",
+            "serviceName": "AcmeBackupAgent",
+            "status": "running"
+          },
+          {
+            "id": "activity-backup-startup-repaired",
+            "timestamp": "2026-08-20T14:56:04Z",
+            "type": "service_startup_mode",
+            "serviceName": "AcmeBackupAgent",
+            "previousStartupMode": "manual",
+            "startupMode": "automatic"
+          },
+          {
+            "id": "activity-backup-config-repaired",
+            "timestamp": "2026-08-20T14:56:04.250Z",
+            "type": "configuration_change",
+            "key": "HKLM/System/CurrentControlSet/Services/AcmeBackupAgent/Start",
+            "previousValue": 3,
+            "value": 2,
+            "processId": 7300,
+            "serviceName": "AcmeBackupAgent"
+          },
+          {
+            "id": "activity-admin-health-network-closed",
+            "timestamp": "2026-08-20T14:56:06Z",
+            "type": "network_connection",
+            "connectionId": "range-connection-admin-health",
+            "action": "closed",
+            "processId": 7300
+          }
+        ],
         "logs": [
+          {
+            "id": "range-log-admin-powershell",
+            "timestamp": "2026-08-20T14:56:02Z",
+            "channel": "PowerShell",
+            "level": "information",
+            "source": "PowerShell",
+            "message": "PowerShell started the Acme backup health script under account-mchen."
+          },
+          {
+            "id": "range-log-backup-policy",
+            "timestamp": "2026-08-20T14:56:04Z",
+            "channel": "System",
+            "level": "information",
+            "source": "Service Control Manager",
+            "message": "AcmeBackupAgent startup mode was set to automatic."
+          },
+          {
+            "id": "range-log-admin-health",
+            "timestamp": "2026-08-20T14:56:05Z",
+            "channel": "Network",
+            "level": "information",
+            "source": "Synthetic Host Network",
+            "message": "Process 7300 posted backup health status to internal management endpoint 10.20.40.15:443."
+          },
+          {
+            "id": "range-log-browser",
+            "timestamp": "2026-08-20T15:00:20Z",
+            "channel": "Network",
+            "level": "information",
+            "source": "Synthetic Host Network",
+            "message": "Process 4520 established a browser TLS connection to 192.0.2.80:443."
+          },
           {
             "id": "range-log-word-open",
             "timestamp": "2026-08-20T15:03:10Z",
@@ -1040,6 +1263,26 @@
               "remotePort": 443,
               "state": "established",
               "processId": 4104
+            },
+            {
+              "id": "range-connection-admin-health",
+              "protocol": "tcp",
+              "localAddress": "10.20.30.44",
+              "localPort": 49680,
+              "remoteAddress": "10.20.40.15",
+              "remotePort": 443,
+              "state": "closed",
+              "processId": 7300
+            },
+            {
+              "id": "range-connection-fin-browser",
+              "protocol": "tcp",
+              "localAddress": "10.20.30.44",
+              "localPort": 54442,
+              "remoteAddress": "192.0.2.80",
+              "remotePort": 443,
+              "state": "established",
+              "processId": 4520
             },
             {
               "id": "range-connection-powershell",

@@ -24,7 +24,11 @@ Range now also has an immutable time-aware host-activity layer separate from liv
 
 Service lifecycle now distinguishes current runtime state from persistence policy. Range can change a modeled service startup mode through the controlled `set-startup` command while leaving its running/stopped state unchanged. Material startup-policy changes emit typed canonical `HOST_SERVICE_STARTUP_MODE_CHANGED` events with previous/current values, appear in SIEM and EDR Range response history, validate as material changes, and replay/reset deterministically. Historical startup-policy facts remain immutable rather than being rewritten by live response operations.
 
-The next Stage 2A milestone is no longer basic event plumbing, evidence capture, first-order host graphing, first-pass host history, or service startup-policy plumbing. It should broaden plausible benign host activity and competing explanations, deepen file/configuration/recovery lifecycle where that creates investigation value, expand response operations in system context, and make the Case graph easier to navigate without turning source facts into conclusions. Stage 2B should then establish a runtime-provider boundary and add one isolated container-backed asset where real operating-system/service behavior creates material investigative value.
+The default Finance endpoint now contains materially competing host explanations rather than one obvious PowerShell path. FIN-LT-04 includes a legitimate remote-administration `wsmprovhost.exe -> powershell.exe` workflow under the modeled IT administrator account, an internal backup-health script, service startup/configuration repair facts, an internal management connection with open/close history, normal browser/network activity, and additional benign file/log context. The suspicious process 8420 retains its Word parent, staged script, user account, and external connection. Analysts must distinguish the two PowerShell lineages by authoritative parent/account/file/configuration/network/time context instead of image name or a scripted answer path. History filtering and relationship pivots keep the lineages separate, containment of 8420 leaves the admin history unchanged, and reset reconstructs both deterministically.
+
+Host-history ordering now compares parsed timestamp instants rather than raw timestamp strings. This keeps mixed valid ISO-8601 precisions such as whole-second and fractional-second facts in chronological order and prevents authored/derived lifecycle facts from being inverted by formatting differences.
+
+The next Stage 2A milestone is no longer basic event plumbing, evidence capture, first-order host graphing, first-pass host history, service startup-policy plumbing, or first-pass Finance ambiguity. It should make eradication and recovery verifiable in Range: stage typed response actions from selected system context, preserve acquired pre-response evidence, verify current process/network/file/service state after response, and keep every material change canonical and replayable. After that, remaining high-value Stage 2A work is richer Case graph navigation and selected file/configuration/recovery depth. Stage 2B should then establish a runtime-provider boundary and add one isolated container-backed asset where real operating-system/service behavior creates material investigative value.
 
 Residual Phase 1 work such as professional-mode objective/score presentation and further response-workflow polish remains valid, but it should not block the Range foundation.
 
@@ -93,7 +97,7 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - relationship-aware process/service investigation helpers
 - immutable artifact source refs and relationship snapshots used for deterministic Case artifact lineage
 - immutable typed synthetic-host activity facts for process lifecycle, file activity, service state, service startup policy, configuration changes, and network connection lifecycle
-- deterministic host-history ordering/filtering and exact source-object reference resolution
+- deterministic host-history ordering/filtering and exact source-object reference resolution, including parsed-instant ordering across mixed ISO timestamp precision
 - immutable history artifacts with activity bounds, source refs, lineage, and network indicators
 - controlled service startup-policy mutation kept separate from service runtime status
 - canonical service startup-policy response events projected coherently into SIEM and EDR
@@ -191,17 +195,23 @@ Implemented:
 34. host history is a Range control-plane evidence surface rather than a synthetic operating-system capability;
 35. service startup policy is modeled separately from service runtime state in both live host state and immutable historical activity;
 36. controlled `set-startup` operations change startup policy without implicitly starting/stopping services and emit canonical `HOST_SERVICE_STARTUP_MODE_CHANGED` events only for material changes;
-37. service startup-policy events carry exact previous/current values into validation, SIEM searchable fields/messages, EDR Range response history, deterministic replay, and reset behavior.
+37. service startup-policy events carry exact previous/current values into validation, SIEM searchable fields/messages, EDR Range response history, deterministic replay, and reset behavior;
+38. FIN-LT-04 contains a second legitimate PowerShell lineage under the IT administrator account, parented by `wsmprovhost.exe`, with an internal backup-health script and management connection rather than an encoded user-document execution chain;
+39. authored backup-service startup/configuration repair facts and exact process/file/configuration relationships provide a plausible competing explanation without inventing service-process causality;
+40. the Finance host includes additional normal workbook, Edge/browser, log, and network context so host investigation is not exhausted by the malicious chain;
+41. process 7300 and process 8420 can be filtered and traced independently through host history and relationship context, with no unrelated facts leaking between those lineages;
+42. browser coverage compares the two PowerShell paths, acquires suspicious history, contains 8420, verifies benign history remains unchanged, and confirms reset reconstructs both paths;
+43. host-history ordering uses parsed timestamp instants so valid mixed ISO-8601 precision cannot invert lifecycle chronology.
 
 ## Immediate implementation priorities
 
-1. Increase default-scenario host-side ambiguity beyond the first history pass: add more normal processes, files, logs, connections, service activity, and plausible competing explanations without scripted command-following.
+1. Make eradication/recovery verifiable in Range: stage typed process/file response actions from system context, preserve pre-response evidence, verify current remediated state, and retain immutable history through reset/replay.
 2. Deepen file/configuration/recovery lifecycle where it materially improves investigation, including validation that eradication and recovery change system state without rewriting historical facts.
-3. Make more incident response happen in host/system context and ensure every material change remains explainable through canonical history.
-4. Add richer artifact/entity graph workflows in Case, including analyst-friendly pivots, filtering, and eventual graph query/navigation without turning source facts into conclusions.
-5. Define the Stage 2B runtime-provider contract so synthetic and container-backed assets expose a compatible higher-level Range investigation interface.
-6. Introduce one ephemeral container-backed Linux/service asset only after isolation, resource/time limits, teardown, and telemetry instrumentation are explicit and testable.
-7. Add microVM/full-VM fidelity later for Windows/AD/appliance scenarios that cannot be represented credibly with lower-fidelity assets.
+3. Add richer artifact/entity graph workflows in Case, including analyst-friendly pivots, filtering, and eventual graph query/navigation without turning source facts into conclusions.
+4. Define the Stage 2B runtime-provider contract so synthetic and container-backed assets expose a compatible higher-level Range investigation interface.
+5. Introduce one ephemeral container-backed Linux/service asset only after isolation, resource/time limits, teardown, and telemetry instrumentation are explicit and testable.
+6. Add microVM/full-VM fidelity later for Windows/AD/appliance scenarios that cannot be represented credibly with lower-fidelity assets.
+7. Keep increasing default-scenario depth only where new evidence or lifecycle semantics create genuine analyst decisions rather than more rows.
 
 ## Enterprise requirements are now first-class
 
@@ -227,7 +237,7 @@ Earlier project guidance intentionally deferred heavy infrastructure until a dem
 
 Therefore:
 
-- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser, evidence, relationship, lineage, time-aware history, and service-persistence implementation;
+- deterministic synthetic-host infrastructure is the immediate fidelity layer and now has an end-to-end browser, evidence, relationship, lineage, time-aware history, service-persistence, and competing-activity implementation;
 - container-backed and eventually VM-backed range infrastructure is explicitly in scope;
 - a server runtime and database are explicitly in scope;
 - orchestration, queues, caches, search engines, and service decomposition may be introduced when measured scale/reliability requirements justify them;

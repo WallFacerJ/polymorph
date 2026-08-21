@@ -6,6 +6,8 @@ import {
 
 const suspiciousScript =
   "/Users/smartinez/AppData/Local/Temp/finance-update.ps1";
+const adminScript =
+  "/ProgramData/Acme/IT/backup-health.ps1";
 
 async function runRangeCommand(
   page: Page,
@@ -79,6 +81,7 @@ test("Endpoint pivots into a coherent synthetic host and supports controlled inv
   await expect(range).toBeVisible();
   await expect(range).toContainText("FIN-LT-04");
   await expect(range).toContainText("powershell.exe");
+  await expect(range).toContainText("7300");
   await expect(range).toContainText("8420");
   await expect(range).toContainText("QuarterlyReview.docm");
   await expect(range).toContainText("203.0.113.77:443");
@@ -111,7 +114,7 @@ test("Endpoint pivots into a coherent synthetic host and supports controlled inv
 
   const powershellState = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "powershell.exe" });
+    .filter({ hasText: /powershell\.exe8420/ });
 
   await expect(powershellState)
     .toContainText("terminated");
@@ -153,7 +156,7 @@ test("Range rejects unknown commands and reset reconstructs the authored host", 
   await expect(
     range
       .locator(".range-inspector-row")
-      .filter({ hasText: "powershell.exe" }),
+      .filter({ hasText: /powershell\.exe8420/ }),
   ).toContainText("running");
 });
 
@@ -288,17 +291,71 @@ test("Range host history separates benign and suspicious activity and survives c
     "Connection range-connection-teams opened",
   );
   await expect(fullHistory).toContainText(
+    "Process 7300 started",
+  );
+  await expect(fullHistory).toContainText(
+    "Connection range-connection-admin-health opened",
+  );
+  await expect(fullHistory).toContainText(
+    "Service AcmeBackupAgent startup changed manual -> automatic",
+  );
+  await expect(fullHistory).toContainText(
     "Process 8420 started",
   );
   await expect(fullHistory).toContainText(
     "Connection range-connection-powershell opened",
   );
 
-  const powershell = range
+  const adminPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "powershell.exe" });
+    .filter({ hasText: /powershell\.exe7300/ });
 
-  await powershell.getByRole(
+  await adminPowershell.getByRole(
+    "button",
+    { name: "Trace history" },
+  ).click();
+  await expect(
+    page.getByLabel("Range command"),
+  ).toHaveValue("history process 7300");
+  await page.getByRole(
+    "button",
+    { name: "Run", exact: true },
+  ).click();
+
+  const adminHistory = range
+    .locator(".range-command-block")
+    .last();
+
+  await expect(adminHistory).toContainText(
+    "Process 7300 started",
+  );
+  await expect(adminHistory).toContainText(
+    `execute ${adminScript} by process 7300`,
+  );
+  await expect(adminHistory).toContainText(
+    "Configuration HKLM/System/CurrentControlSet/Services/AcmeBackupAgent/Start changed",
+  );
+  await expect(adminHistory).toContainText(
+    "Connection range-connection-admin-health opened",
+  );
+  await expect(adminHistory).toContainText(
+    "Connection range-connection-admin-health closed",
+  );
+  await expect(adminHistory).toContainText(
+    "Process 7300 terminated",
+  );
+  await expect(adminHistory).not.toContainText(
+    "203.0.113.77",
+  );
+  await expect(adminHistory).not.toContainText(
+    "Process 8420 started",
+  );
+
+  const suspiciousPowershell = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: /powershell\.exe8420/ });
+
+  await suspiciousPowershell.getByRole(
     "button",
     { name: "Trace history" },
   ).click();
@@ -321,10 +378,10 @@ test("Range host history separates benign and suspicious activity and survives c
     "Connection range-connection-powershell opened",
   );
   await expect(suspiciousHistory).not.toContainText(
-    "range-connection-teams",
+    "range-connection-admin-health",
   );
   await expect(suspiciousHistory).not.toContainText(
-    "Process 4104 started",
+    "Process 7300 started",
   );
 
   await suspiciousHistory.getByRole(
@@ -365,6 +422,21 @@ test("Range host history separates benign and suspicious activity and survives c
 
   await runRangeCommand(
     page,
+    "history process 7300",
+  );
+  const adminAfterContainment = range
+    .locator(".range-command-block")
+    .last();
+
+  await expect(adminAfterContainment).toContainText(
+    "Connection range-connection-admin-health opened",
+  );
+  await expect(adminAfterContainment).toContainText(
+    "Process 7300 terminated",
+  );
+
+  await runRangeCommand(
+    page,
     "history process 8420",
   );
   const afterContainment = range
@@ -386,6 +458,18 @@ test("Range host history separates benign and suspicious activity and survives c
 
   await runRangeCommand(
     page,
+    "history process 7300",
+  );
+  await expect(
+    resetRange
+      .locator(".range-command-block")
+      .last(),
+  ).toContainText(
+    "Connection range-connection-admin-health opened",
+  );
+
+  await runRangeCommand(
+    page,
     "history process 8420",
   );
   await expect(
@@ -397,17 +481,17 @@ test("Range host history separates benign and suspicious activity and survives c
   );
 });
 
-test("Range relationship pivots preserve cross-artifact lineage through containment", async ({
+test("Range relationship pivots preserve distinct PowerShell lineage through containment", async ({
   page,
 }) => {
   await page.goto("/");
   const range = await openRange(page);
 
-  const powershell = range
+  const adminPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "powershell.exe" });
+    .filter({ hasText: /powershell\.exe7300/ });
 
-  await powershell.getByRole(
+  await adminPowershell.getByRole(
     "button",
     { name: "Trace relationships" },
   ).click();
@@ -416,6 +500,38 @@ test("Range relationship pivots preserve cross-artifact lineage through containm
     "region",
     { name: "Range relationship context" },
   );
+
+  await expect(relationshipContext).toContainText(
+    "Process 7300",
+  );
+  await expect(relationshipContext).toContainText("7200");
+  await expect(relationshipContext).toContainText(
+    "account-mchen",
+  );
+  await expect(relationshipContext).toContainText(
+    adminScript,
+  );
+  await expect(relationshipContext).toContainText(
+    "range-connection-admin-health",
+  );
+  await expect(relationshipContext).toContainText(
+    "rel-admin-powershell-backup-health",
+  );
+  await expect(relationshipContext).toContainText(
+    "rel-admin-powershell-backup-startup",
+  );
+  await expect(relationshipContext).not.toContainText(
+    suspiciousScript,
+  );
+
+  const suspiciousPowershell = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: /powershell\.exe8420/ });
+
+  await suspiciousPowershell.getByRole(
+    "button",
+    { name: "Trace relationships" },
+  ).click();
 
   await expect(relationshipContext).toContainText(
     "Process 8420",
@@ -434,6 +550,9 @@ test("Range relationship pivots preserve cross-artifact lineage through containm
   );
   await expect(relationshipContext).toContainText(
     "rel-powershell-finance-update",
+  );
+  await expect(relationshipContext).not.toContainText(
+    adminScript,
   );
 
   await relationshipContext.getByRole(
