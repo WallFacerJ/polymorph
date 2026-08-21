@@ -10,8 +10,29 @@ import type {
   ScenarioDefinition,
 } from "./simulationAdapter";
 
+export interface ShippedScenario {
+  path: string;
+  label: string;
+}
+
+export const SHIPPED_SCENARIOS:
+  readonly ShippedScenario[] = [
+    {
+      path: "/scenarios/account-compromise.json",
+      label: "Finance account compromise",
+    },
+    {
+      path: "/scenarios/hr-malware-beacon.json",
+      label: "HR malware beacon",
+    },
+    {
+      path: "/scenarios/cloud-admin-compromise.json",
+      label: "Cloud-admin compromise",
+    },
+  ];
+
 export const DEFAULT_SCENARIO_PATH =
-  "/scenarios/account-compromise.json";
+  SHIPPED_SCENARIOS[0].path;
 
 export function resolveScenarioPath(
   search: string,
