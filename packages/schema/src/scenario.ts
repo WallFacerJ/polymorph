@@ -4,6 +4,10 @@ import {
   scenarioObjectiveSchema,
 } from "./scenarioObjective";
 
+import {
+  syntheticHostScenarioSchema,
+} from "./syntheticHost";
+
 export const SCENARIO_FILE_VERSION = 1;
 
 const nonEmptyStringSchema =
@@ -444,6 +448,9 @@ export const scenarioSpecSchema =
     description: nonEmptyStringSchema,
     initialWorld:
       scenarioWorldSeedSchema,
+    syntheticHosts:
+      z.array(syntheticHostScenarioSchema)
+        .default([]),
     openingEvents:
       z.array(scenarioEventSchema),
     actions:
