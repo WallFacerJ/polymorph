@@ -1,5 +1,6 @@
 import {
   type FormEvent,
+  useMemo,
   useState,
 } from "react";
 
@@ -8,10 +9,17 @@ import {
   parseRangeCommand,
 } from "./rangeCommandParser";
 
+import {
+  getSyntheticHostProcessInvestigation,
+} from "./simulationAdapter";
+
 import type {
+  SyntheticHostAuthoredRelationship,
   SyntheticHostCommand,
   SyntheticHostCommandExecution,
   SyntheticHostCommandInvocation,
+  SyntheticHostObjectRef,
+  SyntheticHostResolvedRelationship,
   SyntheticHostState,
 } from "./simulationAdapter";
 
@@ -27,6 +35,8 @@ interface RangeDeviceSummary {
 interface RangeWorkspaceProps {
   device: RangeDeviceSummary;
   host: SyntheticHostState;
+  relationships:
+    readonly SyntheticHostAuthoredRelationship[];
   invocations:
     readonly SyntheticHostCommandInvocation[];
   executions:
@@ -183,9 +193,51 @@ function resultLines(
   }
 }
 
+function pivotCommandForRef(
+  ref: SyntheticHostObjectRef,
+): string | null {
+  switch (ref.kind) {
+    case "process":
+      return `process ${ref.id}`;
+    case "file":
+      return `cat ${ref.id}`;
+    case "service":
+      return `service ${ref.id}`;
+    case "configuration":
+      return `config ${ref.id}`;
+    case "connection":
+    case "listener":
+      return "net";
+    case "log":
+      return "logs";
+    case "local_user":
+      return "users";
+    case "local_group":
+      return "groups";
+    case "account":
+      return null;
+  }
+}
+
+function readableRelationship(
+  relationship: SyntheticHostResolvedRelationship,
+): string {
+  const authority =
+    relationship.authority === "authored"
+      ? "authored fact"
+      : "derived from host IDs";
+  const type = relationship.type.replaceAll("_", " ");
+  const detail = relationship.detail
+    ? ` · ${relationship.detail}`
+    : "";
+
+  return `${type} · ${authority}${detail}`;
+}
+
 export function RangeWorkspace({
   device,
   host,
+  relationships,
   invocations,
   executions,
   finalized,
@@ -201,6 +253,30 @@ export function RangeWorkspace({
     ]);
   const [error, setError] =
     useState<string | null>(null);
+  const [selectedProcessId, setSelectedProcessId] =
+    useState<number | null>(null);
+
+  const selectedProcessInvestigation = useMemo(
+    () => {
+      if (selectedProcessId === null) {
+        return null;
+      }
+
+      try {
+        return getSyntheticHostProcessInvestigation(
+          host,
+          relationships,
+          selectedProcessId,
+        );
+      } catch {
+        return null;
+      }
+    }, [
+      host,
+      relationships,
+      selectedProcessId,
+    ]),
+  );
 
   const runningProcesses =
     host.processes.filter(
@@ -268,6 +344,17 @@ export function RangeWorkspace({
       onCollectExecution(index);
 
     setError(runtimeError);
+  };
+
+  const stagePivot = (
+    ref: SyntheticHostObjectRef,
+  ) => {
+    const command = pivotCommandForRef(ref);
+
+    if (command) {
+      setInput(command);
+      setError(null);
+    }
   };
 
   return (
@@ -481,7 +568,11 @@ export function RangeWorkspace({
             {host.processes.map((process) => (
               <div
                 key={process.pid}
-                className="range-inspector-row"
+                className={
+                  selectedProcessId === process.pid
+                    ? "range-inspector-row relationship-selected"
+                    : "range-inspector-row"
+                }
               >
                 <div>
                   <strong>{basename(process.image)}</strong>
@@ -491,8 +582,96 @@ export function RangeWorkspace({
                   {process.state}
                 </span>
                 <small>{process.commandLine}</small>
+                <button
+                  type="button"
+                  className="range-context-button"
+                  onClick={() =>
+                    setSelectedProcessId(process.pid)
+                  }
+                >
+                  Trace relationships
+                </button>
               </div>
             ))}
+          </section>
+
+          <section
+            className="range-inspector-section range-relationship-section"
+            aria-label="Range relationship context"
+          >
+            <h5>Relationship context</h5>
+            {!selectedProcessInvestigation ? (
+              <p className="range-relationship-empty">
+                Select a process to inspect authoritative parent, account, file, service, configuration, and network lineage.
+              </p>
+            ) : (
+              <>
+                <div className="range-relationship-heading">
+                  <strong>
+                    Process {selectedProcessInvestigation.processId}
+                  </strong>
+                  <span>
+                    {selectedProcessInvestigation.relationships.length} relationship(s)
+                  </span>
+                </div>
+
+                <div className="range-related-ref-list">
+                  {selectedProcessInvestigation.relatedRefs
+                    .filter(
+                      (ref) =>
+                        !(
+                          ref.kind === "process" &&
+                          ref.id === String(
+                            selectedProcessInvestigation.processId,
+                          )
+                        ),
+                    )
+                    .map((ref) => {
+                      const pivot =
+                        pivotCommandForRef(ref);
+
+                      return (
+                        <div
+                          className="range-related-ref"
+                          key={`${ref.kind}-${ref.id}`}
+                        >
+                          <span>
+                            <small>{ref.kind.replaceAll("_", " ")}</small>
+                            <code>{ref.id}</code>
+                          </span>
+                          {pivot && (
+                            <button
+                              type="button"
+                              className="range-context-button"
+                              onClick={() => stagePivot(ref)}
+                            >
+                              Stage {pivot}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="range-relationship-list">
+                  {selectedProcessInvestigation.relationships.map(
+                    (relationship) => (
+                      <div
+                        key={relationship.id}
+                        className="range-relationship-row"
+                      >
+                        <code>{relationship.id}</code>
+                        <span>
+                          {readableRelationship(
+                            relationship,
+                          )}
+                        </span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </>
+            )}
           </section>
 
           <section className="range-inspector-section">
