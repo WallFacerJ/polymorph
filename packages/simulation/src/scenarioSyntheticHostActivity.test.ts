@@ -57,7 +57,7 @@ describe("scenario synthetic host activity", () => {
         "derived:file:/Users/smartinez/Downloads/QuarterlyReview.docm:created",
         "derived:file:/Users/smartinez/AppData/Local/Temp/finance-update.ps1:modified",
         "derived:connection:range-connection-teams:opened:noise-network-fin-teams",
-        "derived:connection:range-connection-admin-health:opened:noise-network-fin-admin-health",
+        "derived:connection:range-connection-admin-health:opened:event-fin-admin-health-network",
         "derived:connection:range-connection-fin-browser:opened:noise-network-fin-browser",
         "derived:connection:range-connection-powershell:opened:event-compromise-network",
       ]),
@@ -69,7 +69,7 @@ describe("scenario synthetic host activity", () => {
     const adminNetwork = records.find(
       (record) =>
         record.id ===
-        "derived:connection:range-connection-admin-health:opened:noise-network-fin-admin-health",
+        "derived:connection:range-connection-admin-health:opened:event-fin-admin-health-network",
     );
     const browserNetwork = records.find(
       (record) =>
@@ -144,7 +144,7 @@ describe("scenario synthetic host activity", () => {
       "derived:process:7300:started",
       "activity-admin-backup-script-executed",
       "activity-backup-config-repaired",
-      "derived:connection:range-connection-admin-health:opened:noise-network-fin-admin-health",
+      "derived:connection:range-connection-admin-health:opened:event-fin-admin-health-network",
       "activity-admin-health-network-closed",
       "derived:process:7300:terminated",
     ]);
