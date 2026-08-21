@@ -35,6 +35,12 @@ interface RangeWorkspaceProps {
   onExecute: (
     command: SyntheticHostCommand,
   ) => string | null;
+  isExecutionCollected: (
+    invocationId: string,
+  ) => boolean;
+  onCollectExecution: (
+    executionIndex: number,
+  ) => string | null;
 }
 
 function basename(path: string): string {
@@ -184,6 +190,8 @@ export function RangeWorkspace({
   executions,
   finalized,
   onExecute,
+  isExecutionCollected,
+  onCollectExecution,
 }: RangeWorkspaceProps) {
   const [input, setInput] = useState("");
   const [localOutput, setLocalOutput] =
@@ -253,6 +261,15 @@ export function RangeWorkspace({
     }
   };
 
+  const collectExecution = (
+    index: number,
+  ) => {
+    const runtimeError =
+      onCollectExecution(index);
+
+    setError(runtimeError);
+  };
+
   return (
     <div
       className="range-workspace"
@@ -303,7 +320,12 @@ export function RangeWorkspace({
         </article>
         <article>
           <span>Connections</span>
-          <strong>{host.network.connections.length}</strong>
+          <strong>
+            {host.network.connections.filter(
+              (connection) =>
+                connection.state !== "closed",
+            ).length}
+          </strong>
           <small>{host.network.listeners.length} listeners</small>
         </article>
       </div>
@@ -332,6 +354,10 @@ export function RangeWorkspace({
             {invocations.map(
               (invocation, index) => {
                 const execution = executions[index];
+                const collected =
+                  isExecutionCollected(
+                    invocation.id,
+                  );
 
                 return (
                   <div
@@ -362,6 +388,23 @@ export function RangeWorkspace({
                         audit {execution.audit.id} · {execution.audit.timestamp} · {execution.audit.commandType}
                       </div>
                     )}
+                    {execution &&
+                      execution.result.kind !== "mutation" && (
+                        <button
+                          type="button"
+                          className="evidence-button"
+                          disabled={finalized || collected}
+                          onClick={() =>
+                            collectExecution(index)
+                          }
+                        >
+                          {collected
+                            ? "Range evidence collected"
+                            : finalized
+                              ? "Run finalized"
+                              : "Collect output to Case"}
+                        </button>
+                      )}
                   </div>
                 );
               },
@@ -427,7 +470,7 @@ export function RangeWorkspace({
           </div>
 
           <section className="range-inspector-section">
-            <h5>Running processes</h5>
+            <h5>Processes</h5>
             {host.processes.map((process) => (
               <div
                 key={process.pid}
