@@ -159,6 +159,22 @@
   text-decoration: underline;
 }
 
+/* Keep each security tool's identity visible before selection. */
+.nav-item::after {
+  opacity: 0.24;
+  transform: scaleY(0.72);
+}
+
+.nav-item:hover::after {
+  opacity: 0.58;
+  transform: scaleY(0.9);
+}
+
+.nav-item.active::after {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
 :root[data-theme="retro"] .scenario-controls {
   border-width: 2px;
   border-color: #5266c8;
@@ -189,6 +205,16 @@
     inset 2px 2px 0 rgba(218, 229, 255, 0.18),
     inset -2px -2px 0 #08091f,
     6px 7px 0 rgba(1, 2, 12, 0.62);
+}
+
+:root[data-theme="retro"] .nav-item::after {
+  width: 3px;
+  opacity: 0.42;
+  box-shadow: 0 0 7px color-mix(in srgb, var(--nav-accent) 52%, transparent);
+}
+
+:root[data-theme="retro"] .nav-item.active::after {
+  opacity: 1;
 }
 
 @media (max-width: 1000px) {
