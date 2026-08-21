@@ -1,0 +1,141 @@
+name: Apply remediation core edits
+
+on:
+  push:
+    branches:
+      - feat/multiple-remediation-choices
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/multiple-remediation-choices
+
+      - name: Apply schema, runtime, and fixture edits
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          def replace_once(path_str, old, new):
+              path = Path(path_str)
+              text = path.read_text()
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f"marker not found in {path_str}: {old[:80]!r}")
+              path.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "packages/schema/src/scenario.ts",
+              '    primaryActionId: nonEmptyStringSchema,\n',
+              '    primaryActionId: nonEmptyStringSchema,\n    responseActionIds:\n      z.array(nonEmptyStringSchema)\n        .min(1)\n        .optional(),\n',
+          )
+
+          replace_once(
+              "packages/simulation/src/scenario.ts",
+              '  primaryActionId: string;\n}\n',
+              '  primaryActionId: string;\n\n  responseActionIds:\n    readonly string[];\n}\n',
+          )
+
+          compiler = Path("packages/simulation/src/scenarioCompiler.ts")
+          text = compiler.read_text()
+
+          old_import = '''import type {\n  ScenarioAction,\n  ScenarioDefinition,\n  ScenarioInvestigationContext,\n} from "./scenario";\n'''
+          new_import = '''import type {\n  ScenarioAction,\n  ScenarioDefinition,\n  ScenarioInvestigationContext,\n} from "./scenario";\n\ntype ScenarioInvestigationInput =\n  Omit<\n    ScenarioInvestigationContext,\n    "responseActionIds"\n  > & {\n    responseActionIds?:\n      readonly string[];\n  };\n'''
+          if 'type ScenarioInvestigationInput =' not in text:
+              if old_import not in text:
+                  raise SystemExit("scenarioCompiler import marker not found")
+              text = text.replace(old_import, new_import, 1)
+
+          old_input = '''  investigation:\n    ScenarioInvestigationContext;\n}\n'''
+          new_input = '''  investigation:\n    ScenarioInvestigationInput;\n}\n'''
+          if new_input not in text:
+              if old_input not in text:
+                  raise SystemExit("scenarioCompiler input marker not found")
+              text = text.replace(old_input, new_input, 1)
+
+          old_validation = '''  const hasAction =\n    scenario.actions.some(\n      (action) =>\n        action.id ===\n        context.primaryActionId,\n    );\n\n  if (!hasAction) {\n    throw new Error(\n      `Scenario ${scenario.id} investigation references missing primary action: ${context.primaryActionId}`,\n    );\n  }\n'''
+          new_validation = '''  const actionIds = new Set(\n    scenario.actions.map(\n      (action) => action.id,\n    ),\n  );\n\n  if (!actionIds.has(context.primaryActionId)) {\n    throw new Error(\n      `Scenario ${scenario.id} investigation references missing primary action: ${context.primaryActionId}`,\n    );\n  }\n\n  if (context.responseActionIds.length === 0) {\n    throw new Error(\n      `Scenario ${scenario.id} investigation must expose at least one response action.`,\n    );\n  }\n\n  const responseActionIds =\n    new Set<string>();\n\n  for (const actionId of\n    context.responseActionIds) {\n    if (responseActionIds.has(actionId)) {\n      throw new Error(\n        `Scenario ${scenario.id} investigation defines duplicate response action id: ${actionId}`,\n      );\n    }\n\n    responseActionIds.add(actionId);\n\n    if (!actionIds.has(actionId)) {\n      throw new Error(\n        `Scenario ${scenario.id} investigation references missing response action: ${actionId}`,\n      );\n    }\n  }\n\n  if (!responseActionIds.has(\n    context.primaryActionId,\n  )) {\n    throw new Error(\n      `Scenario ${scenario.id} primary action must be included in responseActionIds: ${context.primaryActionId}`,\n    );\n  }\n'''
+          if 'investigation defines duplicate response action id' not in text:
+              if old_validation not in text:
+                  raise SystemExit("scenarioCompiler validation marker not found")
+              text = text.replace(old_validation, new_validation, 1)
+
+          old_compile = '''    investigation: {\n      ...input.investigation,\n    },\n'''
+          new_compile = '''    investigation: {\n      ...input.investigation,\n      responseActionIds: [\n        ...(\n          input.investigation\n            .responseActionIds ?? [\n            input.investigation\n              .primaryActionId,\n          ]\n        ),\n      ],\n    },\n'''
+          if 'responseActionIds: [' not in text.split('investigation: {', 1)[-1]:
+              if old_compile not in text:
+                  raise SystemExit("scenarioCompiler compile marker not found")
+              text = text.replace(old_compile, new_compile, 1)
+
+          compiler.write_text(text)
+
+          fixture_path = Path("apps/web/public/scenarios/account-compromise.json")
+          fixture = json.loads(fixture_path.read_text())
+          scenario = fixture["scenario"]
+          scenario["actions"] = [
+              {
+                  "id": "revoke_compromised_session",
+                  "label": "Revoke compromised session",
+                  "description": "Terminate the suspicious active identity session while preserving the account for further review.",
+                  "events": [
+                      {
+                          "id": "event-containment-session-revoked",
+                          "type": "SESSION_REVOKED",
+                          "timestamp": "2026-08-20T15:05:00Z",
+                          "source": "identity",
+                          "subjectId": "user-sarah-martinez",
+                          "payload": {
+                              "sessionId": "session-smartinez-compromised",
+                              "reason": "Analyst revoked the suspicious session after correlated endpoint alert."
+                          }
+                      }
+                  ]
+              },
+              {
+                  "id": "disable_compromised_account",
+                  "label": "Disable compromised account",
+                  "description": "Disable the affected identity account to prevent additional authentication attempts.",
+                  "events": [
+                      {
+                          "id": "event-containment-account-disabled",
+                          "type": "ACCOUNT_DISABLED",
+                          "timestamp": "2026-08-20T15:05:00Z",
+                          "source": "identity",
+                          "subjectId": "user-sarah-martinez",
+                          "payload": {
+                              "accountId": "account-smartinez",
+                              "reason": "Analyst disabled the compromised account after correlated endpoint alert."
+                          }
+                      }
+                  ]
+              }
+          ]
+          scenario["investigation"]["primaryActionId"] = "revoke_compromised_session"
+          scenario["investigation"]["responseActionIds"] = [
+              "revoke_compromised_session",
+              "disable_compromised_account"
+          ]
+          fixture_path.write_text(json.dumps(fixture, indent=2) + "\n")
+
+      - name: Commit edits
+        shell: bash
+        run: |
+          if git diff --quiet -- packages/schema/src/scenario.ts packages/simulation/src/scenario.ts packages/simulation/src/scenarioCompiler.ts apps/web/public/scenarios/account-compromise.json; then
+            echo "Core remediation edits already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- packages/schema/src/scenario.ts packages/simulation/src/scenario.ts packages/simulation/src/scenarioCompiler.ts apps/web/public/scenarios/account-compromise.json
+          git commit -m "feat: support multiple remediation actions"
+          git push origin HEAD:feat/multiple-remediation-choices
