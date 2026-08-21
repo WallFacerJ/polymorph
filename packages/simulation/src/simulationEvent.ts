@@ -213,6 +213,81 @@ export type EndpointEvent =
   EndpointHeartbeatEvent;
 
 // -----------------------------------------------------------------------------
+// Polymorph Range host activity
+// -----------------------------------------------------------------------------
+
+export interface HostProcessTerminatedPayload {
+  deviceId: EntityId;
+  processId: string;
+  image: string;
+  accountId?: EntityId;
+  closedConnectionIds: string[];
+  closedListenerIds: string[];
+}
+
+export type HostProcessTerminatedEvent =
+  EventOf<
+    "HOST_PROCESS_TERMINATED",
+    HostProcessTerminatedPayload
+  >;
+
+export interface HostServiceStateChangedPayload {
+  deviceId: EntityId;
+  serviceName: string;
+  previousStatus: "running" | "stopped";
+  status: "running" | "stopped";
+}
+
+export type HostServiceStateChangedEvent =
+  EventOf<
+    "HOST_SERVICE_STATE_CHANGED",
+    HostServiceStateChangedPayload
+  >;
+
+export interface HostFileQuarantinedPayload {
+  deviceId: EntityId;
+  originalPath: string;
+  quarantinePath: string;
+  sha256?: string;
+}
+
+export type HostFileQuarantinedEvent =
+  EventOf<
+    "HOST_FILE_QUARANTINED",
+    HostFileQuarantinedPayload
+  >;
+
+export type HostEvidenceKind =
+  | "file"
+  | "process"
+  | "service"
+  | "identity"
+  | "configuration"
+  | "log"
+  | "network";
+
+export interface HostEvidenceCollectedPayload {
+  deviceId: EntityId;
+  evidenceKind: HostEvidenceKind;
+  targetId: string;
+  summary: string;
+  relatedEntityIds: EntityId[];
+  indicatorIps: string[];
+}
+
+export type HostEvidenceCollectedEvent =
+  EventOf<
+    "HOST_EVIDENCE_COLLECTED",
+    HostEvidenceCollectedPayload
+  >;
+
+export type HostEvent =
+  | HostProcessTerminatedEvent
+  | HostServiceStateChangedEvent
+  | HostFileQuarantinedEvent
+  | HostEvidenceCollectedEvent;
+
+// -----------------------------------------------------------------------------
 // Security detections
 // -----------------------------------------------------------------------------
 
@@ -253,6 +328,7 @@ export type SimulationEvent =
   | FileEvent
   | NetworkEvent
   | EndpointEvent
+  | HostEvent
   | SecurityEvent;
 
 export type SimulationEventType =
