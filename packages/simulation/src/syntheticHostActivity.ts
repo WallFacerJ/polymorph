@@ -130,6 +130,23 @@ function requireTimestamp(
   }
 }
 
+function compareTimestamps(
+  left: SimulationTimestamp,
+  right: SimulationTimestamp,
+): number {
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+
+  if (
+    Number.isFinite(leftTime) &&
+    Number.isFinite(rightTime)
+  ) {
+    return leftTime - rightTime;
+  }
+
+  return left.localeCompare(right);
+}
+
 function ref(
   kind: SyntheticHostObjectRef["kind"],
   id: string | number,
@@ -208,7 +225,8 @@ export function sortSyntheticHostActivity(
     structuredClone([...records]);
 
   return cloned.sort((left, right) => {
-    const timestamp = left.timestamp.localeCompare(
+    const timestamp = compareTimestamps(
+      left.timestamp,
       right.timestamp,
     );
 
@@ -231,7 +249,8 @@ function processStartTimestamp(
         candidate.payload.processId === String(processId),
     )
     .sort((left, right) => {
-      const timestamp = left.timestamp.localeCompare(
+      const timestamp = compareTimestamps(
+        left.timestamp,
         right.timestamp,
       );
 
