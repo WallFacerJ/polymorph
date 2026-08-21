@@ -10,11 +10,13 @@ Polymorph remains for synthetic, isolated security simulation. It must not becom
 
 ## Current milestone
 
-**Enterprise Evolution Phase 1: deep investigation and professional tool identity.**
+**Enterprise Evolution Phase 2: Synthetic Infrastructure Fabric and Range.**
 
-Polymorph v1.0.0 is complete. The v1 architecture proved deterministic scenarios, correlated identity/EDR/SIEM projections, analyst case state, response outcomes, instructor review, and browser delivery.
+The core Phase 1 professional-tool reset is now implemented enough to move forward. SIEM, EDR, Identity, and Case are distinct investigation applications over the same deterministic run rather than shallow panels over curated telemetry.
 
-First-time tester feedback exposed the main product gap: the experience is coherent but too shallow, too course-like, too visually uniform, and not sufficiently technical to feel like a serious cyber-operations product.
+The next product gap is no longer primarily UI depth. Analysts need systems they can actually enter and inspect. The active milestone is therefore Stage 2A of the Synthetic Infrastructure Fabric: deterministic synthetic hosts attached to Fabric assets, exposed through a controlled investigation command surface, with every host mutation and observation remaining replayable and coherent with the shared event history.
+
+Residual Phase 1 work such as professional-mode objective/score presentation and further response-workflow polish remains valid, but it should not block the Range foundation.
 
 The current north star and competitive requirements are documented in:
 
@@ -84,34 +86,48 @@ A mature Polymorph run should feel like operating a living enterprise during an 
 - optional ground-truth incident metadata
 - semantic validation of response actions, objectives, and ground-truth references
 
-### Current analyst/instructor surface
+### Professional investigation surface
 
-- alert-first browser workspace
-- correlated timeline
-- endpoint and identity pivots
-- evidence collection by event ID
-- analyst findings linked to evidence
-- response-action chooser
-- explicit finalization and score/result
-- finalized read-only case
+- alert-first investigation entry point and correlated timeline
+- SIEM workspace with deterministic search/query, facets, time controls, raw event detail, saved searches, and exact pivots
+- EDR workspace with endpoint inventory, process trees, file/network context, endpoint history, Case/SIEM pivots, and endpoint-scoped response operations
+- Identity workspace with account inventory, provider/status, roles, authentication provenance, sessions, access history, Case/SIEM pivots, and identity-scoped containment
+- Case incident-command workspace with evidence provenance, deterministic indicators/entities, hypotheses, tasks/owners/status, incident phase, findings, response-decision history, source-tool pivots, and generated incident reporting
+- evidence collection by shared event ID across tools
+- explicit finalization, deterministic outcome/score, and finalized read-only investigation state
 - instructor ground-truth review
 - three JSON-authored scenarios
 - scenario selector and visual themes
-- Playwright browser-regression suite
+- deterministic and Playwright browser-regression coverage
 - GitHub Pages/public testing workflow
 
-This surface is now considered the v1 baseline to be replaced/refactored where needed for enterprise depth.
+## Phase 1 implementation checkpoint
+
+Implemented:
+
+1. professional SIEM investigation rather than a curated event list;
+2. professional EDR endpoint/process investigation;
+3. deep Identity account/session/authentication investigation;
+4. Case as an operational incident-command layer instead of an evidence notebook;
+5. response operations available in EDR and Identity context;
+6. exact cross-tool event pivots and shared Case provenance;
+7. deterministic runtime/browser coverage for the new workflows.
+
+Remaining follow-up:
+
+- hide explicit objectives/scores during active professional-mode runs by default while retaining an optional guided mode;
+- continue moving any remaining answer-card-like response work into operational context;
+- increase default-scenario investigation depth as new Fabric/telemetry capabilities arrive.
 
 ## Immediate implementation priorities
 
-1. Build a real SIEM workspace with search/query, time controls, facets, raw events, pivots, and enough noisy telemetry to require analysis.
-2. Build a real EDR workspace with endpoint inventory, process trees, file/network context, and endpoint-scoped actions.
-3. Expand Identity into account/session/access/risk/history analysis rather than a summary panel.
-4. Redesign Case into an incident-command graph connecting evidence, entities, hypotheses, tasks, findings, decisions, and response actions.
-5. Move professional response work out of obvious multiple-choice cards and into the relevant tool/system context.
-6. Hide explicit objectives/scores during active professional-mode runs by default; preserve guided assistance as an optional mode.
-7. Design and build the Synthetic Infrastructure Fabric fidelity ladder: deterministic synthetic hosts -> isolated containers -> microVM/full VM where necessary.
-8. Add telemetry domains and scenario complexity only in service of genuinely deeper incidents.
+1. Define a deterministic synthetic-host state model attached to Fabric devices/assets: filesystem, processes, services, users/groups, configuration, local logs, listeners, and connections.
+2. Add a controlled host investigation command API that can inspect and mutate only validated synthetic host state; no arbitrary host-shell execution.
+3. Record host observations/actions into deterministic run history so SIEM, EDR, Case, and future projections can explain the same causal system changes.
+4. Add host snapshots/reset and prove identical replay from the same initial state plus analyst command sequence.
+5. Build the first Range workspace/terminal-like client over that command API and support evidence acquisition into Case.
+6. Integrate one existing scenario end-to-end so an analyst can pivot from an alert into a synthetic host, inspect artifacts/processes/configuration, collect evidence, take containment action, and see coherent telemetry updates.
+7. Only after Stage 2A proves the abstraction, introduce ephemeral container-backed assets for scenarios that genuinely need real Linux/service behavior.
 
 ## Enterprise requirements are now first-class
 
@@ -137,6 +153,7 @@ Earlier project guidance intentionally deferred heavy infrastructure until a dem
 
 Therefore:
 
+- deterministic synthetic-host infrastructure is the immediate next fidelity layer;
 - container-backed and eventually VM-backed range infrastructure is explicitly in scope;
 - a server runtime and database are explicitly in scope;
 - orchestration, queues, caches, search engines, and service decomposition may be introduced when measured scale/reliability requirements justify them;
