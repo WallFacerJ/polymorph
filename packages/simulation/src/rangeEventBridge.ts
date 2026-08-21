@@ -32,6 +32,10 @@ import type {
 } from "./syntheticHost";
 
 import type {
+  SyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import type {
   SyntheticHostAuthoredRelationship,
 } from "./syntheticHostRelationship";
 
@@ -211,6 +215,8 @@ export function replayRangeCommandsWithEvents(
   initialState: SyntheticHostState,
   invocations:
     readonly SyntheticHostCommandInvocation[],
+  activityRecords:
+    readonly SyntheticHostActivity[] = [],
 ): RangeCanonicalReplayResult {
   let state = structuredClone(initialState);
   const executions:
@@ -243,6 +249,7 @@ export function replayRangeCommandsWithEvents(
       executeSyntheticHostCommand(
         state,
         invocation,
+        activityRecords,
       );
 
     if (
