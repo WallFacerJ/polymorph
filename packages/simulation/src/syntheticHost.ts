@@ -3,6 +3,18 @@ import type {
   SimulationTimestamp,
 } from "@polymorph/domain";
 
+import {
+  querySyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import type {
+  SyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import type {
+  SyntheticHostObjectRef,
+} from "./syntheticHostRelationship";
+
 import type {
   WorldState,
 } from "./worldState";
@@ -17,6 +29,7 @@ export type SyntheticHostCapability =
   | "read:configuration"
   | "read:logs"
   | "read:network"
+  | "read:history"
   | "manage:services"
   | "terminate:process"
   | "quarantine:file";
@@ -187,6 +200,11 @@ export type SyntheticHostCommand =
       type: "list_network";
     }
   | {
+      type: "list_activity";
+      objectKind?: SyntheticHostObjectRef["kind"];
+      objectId?: string;
+    }
+  | {
       type: "start_service";
       name: string;
     }
@@ -258,6 +276,11 @@ export type SyntheticHostCommandResult =
       network: SyntheticHostNetworkState;
     }
   | {
+      kind: "activity";
+      filter: SyntheticHostObjectRef | null;
+      records: readonly SyntheticHostActivity[];
+    }
+  | {
       kind: "mutation";
       changed: boolean;
       targetType: "service" | "process" | "file";
@@ -294,6 +317,7 @@ const ALL_CAPABILITIES:
     "read:configuration",
     "read:logs",
     "read:network",
+    "read:history",
     "manage:services",
     "terminate:process",
     "quarantine:file",
@@ -880,6 +904,8 @@ function execution(
 export function executeSyntheticHostCommand(
   state: SyntheticHostState,
   invocation: SyntheticHostCommandInvocation,
+  activityRecords:
+    readonly SyntheticHostActivity[] = [],
 ): SyntheticHostCommandExecution {
   requireInvocation(invocation);
 
@@ -1143,6 +1169,60 @@ export function executeSyntheticHostCommand(
       );
     }
 
+    case "list_activity": {
+      requireCapability(
+        state,
+        "read:history",
+      );
+
+      const hasKind =
+        command.objectKind !== undefined;
+      const hasId =
+        command.objectId !== undefined;
+
+      if (hasKind !== hasId) {
+        throw new Error(
+          "Synthetic host history filter requires both object kind and object id.",
+        );
+      }
+
+      if (command.objectId !== undefined) {
+        requireNonEmpty(
+          command.objectId,
+          "Synthetic host history object id",
+        );
+      }
+
+      const filter:
+        SyntheticHostObjectRef | null =
+        command.objectKind !== undefined &&
+        command.objectId !== undefined
+          ? {
+              kind: command.objectKind,
+              id: command.objectId,
+            }
+          : null;
+      const records =
+        querySyntheticHostActivity(
+          activityRecords,
+          filter === null
+            ? {}
+            : { ref: filter },
+        );
+
+      return execution(
+        state,
+        invocation,
+        {
+          kind: "activity",
+          filter,
+          records,
+        },
+        false,
+        `Listed ${records.length} synthetic host activity record(s)${filter === null ? "" : ` for ${filter.kind}:${filter.id}`}.`,
+      );
+    }
+
     case "start_service":
     case "stop_service": {
       requireCapability(
@@ -1303,6 +1383,8 @@ export function replaySyntheticHostCommands(
   initialState: SyntheticHostState,
   invocations:
     readonly SyntheticHostCommandInvocation[],
+  activityRecords:
+    readonly SyntheticHostActivity[] = [],
 ): SyntheticHostReplayResult {
   let state = cloneState(initialState);
   const executions:
@@ -1333,6 +1415,7 @@ export function replaySyntheticHostCommands(
       executeSyntheticHostCommand(
         state,
         invocation,
+        activityRecords,
       );
     state = result.state;
     executions.push(result);

@@ -226,6 +226,21 @@
   background: color-mix(in srgb, #63d59b 6%, var(--panel-bg));
 }
 
+.range-context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.range-inspector-row > .range-context-actions {
+  grid-column: 1 / -1;
+}
+
+.range-related-ref > .range-context-actions {
+  justify-content: flex-end;
+}
+
 .range-context-button {
   justify-self: start;
   padding: 4px 8px;
@@ -357,5 +372,9 @@
 
   .range-related-ref {
     grid-template-columns: 1fr;
+  }
+
+  .range-related-ref > .range-context-actions {
+    justify-content: flex-start;
   }
 }

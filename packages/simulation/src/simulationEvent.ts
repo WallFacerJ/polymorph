@@ -268,7 +268,8 @@ export type HostEvidenceKind =
   | "identity"
   | "configuration"
   | "log"
-  | "network";
+  | "network"
+  | "history";
 
 export type HostEvidenceAcquisitionMethod =
   "controlled_range_command";

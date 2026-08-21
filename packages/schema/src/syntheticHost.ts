@@ -26,6 +26,7 @@ export const syntheticHostCapabilitySchema = z.enum([
   "read:configuration",
   "read:logs",
   "read:network",
+  "read:history",
   "manage:services",
   "terminate:process",
   "quarantine:file",
@@ -175,6 +176,61 @@ export const syntheticHostRelationshipSchema =
     }).strict(),
   ]);
 
+const syntheticHostActivityBase = {
+  id: nonEmptyString,
+  timestamp,
+} as const;
+
+export const syntheticHostActivitySchema =
+  z.discriminatedUnion("type", [
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("process_started"),
+      processId: pid,
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("process_terminated"),
+      processId: pid,
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("file_activity"),
+      filePath: virtualPath,
+      operation: z.enum([
+        "read",
+        "write",
+        "create",
+        "delete",
+        "execute",
+      ]),
+      processId: pid.optional(),
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("service_state"),
+      serviceName: nonEmptyString,
+      status: z.enum(["running", "stopped"]),
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("configuration_change"),
+      key: nonEmptyString,
+      value: syntheticHostConfigValueSchema,
+      previousValue:
+        syntheticHostConfigValueSchema.optional(),
+      processId: pid.optional(),
+      serviceName: nonEmptyString.optional(),
+    }).strict(),
+    z.object({
+      ...syntheticHostActivityBase,
+      type: z.literal("network_connection"),
+      connectionId: nonEmptyString,
+      action: z.enum(["opened", "closed"]),
+      processId: pid.optional(),
+    }).strict(),
+  ]);
+
 export const syntheticHostScenarioSchema = z.object({
   deviceId: nonEmptyString,
   capabilities:
@@ -216,6 +272,9 @@ export const syntheticHostScenarioSchema = z.object({
   }),
   relationships:
     z.array(syntheticHostRelationshipSchema)
+      .default([]),
+  activity:
+    z.array(syntheticHostActivitySchema)
       .default([]),
 }).strict();
 

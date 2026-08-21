@@ -20,6 +20,17 @@ import type {
 } from "./syntheticHost";
 
 import {
+  deriveSyntheticHostActivity,
+  sortSyntheticHostActivity,
+  validateSyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import type {
+  SyntheticHostActivity,
+  SyntheticHostActivitySet,
+} from "./syntheticHostActivity";
+
+import {
   validateSyntheticHostRelationships,
 } from "./syntheticHostRelationship";
 
@@ -40,6 +51,10 @@ import type {
   ScenarioInvestigationContext,
 } from "./scenario";
 
+import type {
+  ScenarioObjective,
+} from "./scenarioOutcome";
+
 type ScenarioInvestigationInput =
   Omit<
     ScenarioInvestigationContext,
@@ -53,11 +68,8 @@ export interface ScenarioSyntheticHostInput
   extends SyntheticHostSeed {
   relationships?:
     readonly SyntheticHostAuthoredRelationship[];
+  activity?: readonly SyntheticHostActivity[];
 }
-
-import type {
-  ScenarioObjective,
-} from "./scenarioOutcome";
 
 export interface ScenarioDefinitionInput {
   id: string;
@@ -198,7 +210,15 @@ function compileSyntheticHosts(
     seenDeviceIds.add(seed.deviceId);
 
     return createSyntheticHostState(
-      seed,
+      {
+        ...seed,
+        capabilities: [
+          ...new Set([
+            ...(seed.capabilities ?? []),
+            "read:history" as const,
+          ]),
+        ],
+      },
       initialWorld,
     );
   });
@@ -239,6 +259,45 @@ function compileSyntheticHostRelationships(
   });
 }
 
+function compileSyntheticHostActivity(
+  input: ScenarioDefinitionInput,
+  hosts: readonly SyntheticHostState[],
+): readonly SyntheticHostActivitySet[] {
+  const hostByDeviceId = new Map(
+    hosts.map((host) => [host.deviceId, host]),
+  );
+
+  return (
+    input.syntheticHosts ?? []
+  ).map((seed) => {
+    const host = hostByDeviceId.get(seed.deviceId);
+
+    if (!host) {
+      throw new Error(
+        `Scenario ${input.id} cannot resolve synthetic host activity for device: ${seed.deviceId}`,
+      );
+    }
+
+    const records = sortSyntheticHostActivity([
+      ...deriveSyntheticHostActivity(
+        host,
+        input.openingEvents,
+      ),
+      ...(seed.activity ?? []),
+    ]);
+
+    validateSyntheticHostActivity(
+      host,
+      records,
+    );
+
+    return {
+      deviceId: seed.deviceId,
+      records,
+    };
+  });
+}
+
 export function compileScenarioDefinition(
   input: ScenarioDefinitionInput,
 ): ScenarioDefinition {
@@ -256,6 +315,11 @@ export function compileScenarioDefinition(
       input,
       syntheticHosts,
     );
+  const syntheticHostActivity =
+    compileSyntheticHostActivity(
+      input,
+      syntheticHosts,
+    );
 
   const scenario: ScenarioDefinition = {
     id: input.id,
@@ -264,6 +328,7 @@ export function compileScenarioDefinition(
     initialWorld,
     syntheticHosts,
     syntheticHostRelationships,
+    syntheticHostActivity,
     openingEvents:
       structuredClone(
         input.openingEvents,

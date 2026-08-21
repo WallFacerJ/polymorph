@@ -1,5 +1,6 @@
 import type {
   SyntheticHostCommand,
+  SyntheticHostObjectKind,
 } from "./simulationAdapter";
 
 export type RangeParsedCommand =
@@ -22,11 +23,22 @@ export const RANGE_COMMAND_HELP = [
   "config <key>",
   "logs [channel]",
   "net",
+  "history [process|file|service|configuration|connection <id>]",
   "stop-service <name>",
   "start-service <name>",
   "kill <pid>",
   "quarantine <path> <destination>",
 ] as const;
+
+const HISTORY_OBJECT_KINDS = new Set<
+  SyntheticHostObjectKind
+>([
+  "process",
+  "file",
+  "service",
+  "configuration",
+  "connection",
+]);
 
 function tokenize(
   input: string,
@@ -223,6 +235,45 @@ export function parseRangeCommand(
           type: "list_network",
         },
       };
+
+    case "history": {
+      if (args.length === 0) {
+        return {
+          kind: "runtime",
+          command: {
+            type: "list_activity",
+          },
+        };
+      }
+
+      requireNoExtraArgs(
+        args,
+        2,
+        "history [process|file|service|configuration|connection <id>]",
+      );
+      const rawKind = requireArgument(
+        args[0],
+        "history [process|file|service|configuration|connection <id>]",
+      ) as SyntheticHostObjectKind;
+
+      if (!HISTORY_OBJECT_KINDS.has(rawKind)) {
+        throw new Error(
+          `Range history does not support object kind: ${rawKind}.`,
+        );
+      }
+
+      return {
+        kind: "runtime",
+        command: {
+          type: "list_activity",
+          objectKind: rawKind,
+          objectId: requireArgument(
+            args[1],
+            "history [process|file|service|configuration|connection <id>]",
+          ),
+        },
+      };
+    }
 
     case "stop-service":
       requireNoExtraArgs(

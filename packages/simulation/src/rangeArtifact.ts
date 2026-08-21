@@ -18,6 +18,15 @@ import type {
 } from "./syntheticHost";
 
 import {
+  getSyntheticHostActivityRefs,
+  getSyntheticHostActivityTimeRange,
+} from "./syntheticHostActivity";
+
+import type {
+  SyntheticHostActivity,
+} from "./syntheticHostActivity";
+
+import {
   getSyntheticHostRelationshipsForRefs,
   syntheticHostObjectRefKey,
 } from "./syntheticHostRelationship";
@@ -36,7 +45,8 @@ export type RangeArtifactKind =
   | "identity"
   | "configuration"
   | "log"
-  | "network";
+  | "network"
+  | "history";
 
 export type RangeArtifactAcquisitionMethod =
   "controlled_range_command";
@@ -149,6 +159,17 @@ export interface RangeNetworkArtifact
   snapshot: SyntheticHostNetworkState;
 }
 
+export interface RangeHistoryArtifact
+  extends RangeArtifactBase {
+  kind: "history";
+  snapshot: {
+    filter: SyntheticHostObjectRef | null;
+    startAt: SimulationTimestamp | null;
+    endAt: SimulationTimestamp | null;
+    records: readonly SyntheticHostActivity[];
+  };
+}
+
 export type RangeArtifact =
   | RangeFileArtifact
   | RangeProcessArtifact
@@ -156,7 +177,8 @@ export type RangeArtifact =
   | RangeIdentityArtifact
   | RangeConfigurationArtifact
   | RangeLogArtifact
-  | RangeNetworkArtifact;
+  | RangeNetworkArtifact
+  | RangeHistoryArtifact;
 
 export interface CreateRangeArtifactInput {
   id: EntityId;
@@ -300,6 +322,31 @@ function baseArtifact(
     indicatorIps: [...indicatorIps],
     integrity,
   };
+}
+
+function historyIndicatorIps(
+  input: CreateRangeArtifactInput,
+  records: readonly SyntheticHostActivity[],
+): readonly string[] {
+  const connectionIds = new Set(
+    records.flatMap((record) =>
+      record.type === "network_connection"
+        ? [record.connectionId]
+        : [],
+    ),
+  );
+
+  return uniqueStrings(
+    input.execution.state.network.connections.flatMap(
+      (connection) =>
+        connectionIds.has(connection.id)
+          ? [
+              connection.localAddress,
+              connection.remoteAddress,
+            ]
+          : [],
+    ),
+  );
 }
 
 export function createRangeArtifact(
@@ -532,6 +579,47 @@ export function createRangeArtifact(
       };
     }
 
+    case "activity": {
+      const sourceRefs = uniqueObjectRefs(
+        result.records.flatMap(
+          getSyntheticHostActivityRefs,
+        ),
+      );
+      const timeRange =
+        getSyntheticHostActivityTimeRange(
+          result.records,
+        );
+      const sourceReference =
+        result.filter === null
+          ? "history:all"
+          : `history:${result.filter.kind}:${result.filter.id}`;
+
+      return {
+        ...baseArtifact(
+          input,
+          "history",
+          sourceReference,
+          sourceRefs,
+          [input.deviceId],
+          historyIndicatorIps(
+            input,
+            result.records,
+          ),
+        ),
+        kind: "history",
+        snapshot: {
+          filter: result.filter
+            ? { ...result.filter }
+            : null,
+          startAt: timeRange.startAt,
+          endAt: timeRange.endAt,
+          records: structuredClone(
+            result.records,
+          ),
+        },
+      };
+    }
+
     case "mutation":
       throw new Error(
         "Range mutation executions cannot be acquired as evidence artifacts.",
@@ -571,5 +659,8 @@ export function summarizeRangeArtifact(
 
     case "network":
       return `Range network artifact containing ${artifact.snapshot.connections.length} connection(s) and ${artifact.snapshot.listeners.length} listener(s)`;
+
+    case "history":
+      return `Range host-history artifact containing ${artifact.snapshot.records.length} activity record(s)`;
   }
 }
