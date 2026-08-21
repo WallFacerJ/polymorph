@@ -31,7 +31,6 @@ export const syntheticHostCapabilitySchema = z.enum([
   "read:configuration",
   "read:logs",
   "read:network",
-  "read:history",
   "manage:services",
   "terminate:process",
   "quarantine:file",
