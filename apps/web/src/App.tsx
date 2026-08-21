@@ -24,6 +24,7 @@ import {
   collectAnalystEvidence,
   createAnalystCaseState,
   edrProjection,
+  finalizeScenarioState,
   getScenarioState,
   identityProjection,
   rebuildProjection,
@@ -94,6 +95,8 @@ function ScenarioWorkspace({
     );
   const [performedActionIds, setPerformedActionIds] =
     useState<string[]>([]);
+  const [finalized, setFinalized] =
+    useState(false);
   const [analystCase, setAnalystCase] =
     useState(() =>
       createAnalystCaseState(),
@@ -109,13 +112,19 @@ function ScenarioWorkspace({
 
   const scenarioState = useMemo(
     () =>
-      getScenarioState(
-        scenario,
-        performedActionIds,
-      ),
+      finalized
+        ? finalizeScenarioState(
+            scenario,
+            performedActionIds,
+          )
+        : getScenarioState(
+            scenario,
+            performedActionIds,
+          ),
     [
       scenario,
       performedActionIds,
+      finalized,
     ],
   );
 
@@ -231,9 +240,20 @@ function ScenarioWorkspace({
       },
     );
 
-  const responseComplete =
+  const responseSucceeded =
     scenarioState.outcome.status ===
     "succeeded";
+
+  const runStatusLabel =
+    scenarioState.finalized
+      ? responseSucceeded
+        ? "Succeeded"
+        : "Failed"
+      : responseSucceeded
+        ? "Objectives met"
+        : performedActionIds.length > 0
+          ? "Response in progress"
+          : "Needs action";
 
   const isEvidenceCollected = (
     eventId: string | undefined,
@@ -313,6 +333,7 @@ function ScenarioWorkspace({
     actionId: string,
   ) => {
     if (
+      scenarioState.finalized ||
       performedActionIds.includes(
         actionId,
       ) ||
@@ -335,8 +356,18 @@ function ScenarioWorkspace({
     setActiveView("timeline");
   };
 
+  const finalizeInvestigation = () => {
+    if (scenarioState.finalized) {
+      return;
+    }
+
+    setFinalized(true);
+    setActiveView("timeline");
+  };
+
   const resetScenario = () => {
     setPerformedActionIds([]);
+    setFinalized(false);
     setAnalystCase(
       createAnalystCaseState(),
     );
@@ -413,16 +444,13 @@ function ScenarioWorkspace({
           <div className="topbar-actions">
             <span
               className={
-                responseComplete
+                scenarioState.finalized &&
+                responseSucceeded
                   ? "incident-state contained"
                   : "incident-state active"
               }
             >
-              {responseComplete
-                ? "Response complete"
-                : performedActionIds.length > 0
-                  ? "Response in progress"
-                  : "Needs action"}
+              {runStatusLabel}
             </span>
             <button
               type="button"
@@ -514,6 +542,17 @@ function ScenarioWorkspace({
                 </p>
                 <h3>Correlated incident timeline</h3>
               </div>
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={finalizeInvestigation}
+                disabled={scenarioState.finalized}
+              >
+                {scenarioState.finalized
+                  ? "Investigation finalized"
+                  : "Finalize investigation"}
+              </button>
             </div>
 
             <ScenarioOutcomePanel
@@ -524,11 +563,13 @@ function ScenarioWorkspace({
               actions={responseActions}
               performedActionIds={scenarioState.performedActionIds}
               score={scenarioState.score}
+              finalized={scenarioState.finalized}
               onPerform={performResponseAction}
             />
 
-            {scenarioState.outcome.status === "succeeded" && (
+            {scenarioState.finalized && (
               <ScenarioResultPanel
+                status={scenarioState.outcome.status}
                 score={scenarioState.score}
                 actionCount={scenarioState.performedActionIds.length}
                 evidenceCount={analystCase.collectedEventIds.length}
