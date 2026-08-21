@@ -58,7 +58,7 @@ test("Case connects source evidence to hypotheses tasks and exact tool pivots", 
 
   await page.getByRole(
     "button",
-    { name: "Case" },
+    { name: "Case", exact: true },
   ).click();
 
   let workspace = page.getByRole(
@@ -150,7 +150,7 @@ test("Case connects source evidence to hypotheses tasks and exact tool pivots", 
 
   await page.getByRole(
     "button",
-    { name: "Case" },
+    { name: "Case", exact: true },
   ).click();
   workspace = page.getByRole(
     "region",
@@ -190,7 +190,7 @@ test("Case derives response decisions and report state from performed operations
 
   await page.getByRole(
     "button",
-    { name: "Case" },
+    { name: "Case", exact: true },
   ).click();
 
   const workspace = page.getByRole(
