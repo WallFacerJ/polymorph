@@ -30,7 +30,8 @@ import {
 export type CaseSourceTool =
   | "identity"
   | "edr"
-  | "siem";
+  | "siem"
+  | "range";
 
 export interface CaseIndicator {
   kind: "ip";
@@ -86,6 +87,12 @@ function primaryToolForEvent(
     case "ENDPOINT_HEARTBEAT":
     case "ALERT_CREATED":
       return "edr";
+
+    case "HOST_PROCESS_TERMINATED":
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+    case "HOST_EVIDENCE_COLLECTED":
+      return "range";
   }
 }
 
@@ -181,6 +188,27 @@ function getKnownEntityIds(
         event.payload.deviceId,
       ]);
 
+    case "HOST_PROCESS_TERMINATED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+        event.payload.accountId,
+      ]);
+
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+      ]);
+
+    case "HOST_EVIDENCE_COLLECTED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+        ...event.payload.relatedEntityIds,
+      ]);
+
     case "ALERT_CREATED":
       return uniqueStrings([
         ...shared,
@@ -213,6 +241,10 @@ function getIndicators(
 
     case "ENDPOINT_HEARTBEAT":
       ips = event.payload.ipAddresses;
+      break;
+
+    case "HOST_EVIDENCE_COLLECTED":
+      ips = event.payload.indicatorIps;
       break;
 
     default:
