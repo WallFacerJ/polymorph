@@ -53,80 +53,32 @@ jobs:
           app = app_path.read_text()
 
           if 'from "./EdrWorkspace"' not in app:
-              marker = '''import {
-            SiemWorkspace,
-          } from "./SiemWorkspace";
-          '''
-              replacement = marker + '''
-          import {
-            EdrWorkspace,
-          } from "./EdrWorkspace";
-          '''
+              marker = 'import {\n  SiemWorkspace,\n} from "./SiemWorkspace";\n'
+              replacement = marker + '\nimport {\n  EdrWorkspace,\n} from "./EdrWorkspace";\n'
               if marker not in app:
                   raise SystemExit('SIEM import marker not found')
               app = app.replace(marker, replacement, 1)
 
           if 'const [siemPivot, setSiemPivot]' not in app:
-              marker = '''  const [caseError, setCaseError] =
-            useState<string | null>(null);
-          '''
-              replacement = marker + '''  const [siemPivot, setSiemPivot] =
-            useState({
-              query: "",
-              nonce: 0,
-            });
-          '''
+              marker = '  const [caseError, setCaseError] =\n    useState<string | null>(null);\n'
+              replacement = marker + '  const [siemPivot, setSiemPivot] =\n    useState({\n      query: "",\n      nonce: 0,\n    });\n'
               if marker not in app:
                   raise SystemExit('caseError state marker not found')
               app = app.replace(marker, replacement, 1)
 
           if 'const openSiem = (' not in app:
               marker = '  const resetScenario = () => {'
-              insertion = '''  const openSiem = (
-            query: string,
-          ) => {
-            setSiemPivot((current) => ({
-              query,
-              nonce: current.nonce + 1,
-            }));
-            setActiveView("siem");
-          };
-
-          '''
+              insertion = '  const openSiem = (\n    query: string,\n  ) => {\n    setSiemPivot((current) => ({\n      query,\n      nonce: current.nonce + 1,\n    }));\n    setActiveView("siem");\n  };\n\n'
               if marker not in app:
                   raise SystemExit('reset marker not found')
               app = app.replace(marker, insertion + marker, 1)
 
-          old_siem = '''        {activeView === "siem" && (
-                    <section className="workspace-section siem-section">
-                      <SiemWorkspace
-                        records={projections.siem.events}
-                        finalized={scenarioState.finalized}
-                        isCollected={isEvidenceCollected}
-                        onCollect={collectEvidence}
-                        onOpenCase={() => setActiveView("case")}
-                      />
-                    </section>
-                  )}
-          '''
-          new_siem = '''        {activeView === "siem" && (
-                    <section className="workspace-section siem-section">
-                      <SiemWorkspace
-                        key={`siem-${siemPivot.nonce}`}
-                        records={projections.siem.events}
-                        initialQuery={siemPivot.query}
-                        finalized={scenarioState.finalized}
-                        isCollected={isEvidenceCollected}
-                        onCollect={collectEvidence}
-                        onOpenCase={() => setActiveView("case")}
-                      />
-                    </section>
-                  )}
-          '''
           if 'initialQuery={siemPivot.query}' not in app:
-              if old_siem not in app:
+              marker = '            <SiemWorkspace\n              records={projections.siem.events}\n'
+              replacement = '            <SiemWorkspace\n              key={`siem-${siemPivot.nonce}`}\n              records={projections.siem.events}\n              initialQuery={siemPivot.query}\n'
+              if marker not in app:
                   raise SystemExit('SIEM render marker not found')
-              app = app.replace(old_siem, new_siem, 1)
+              app = app.replace(marker, replacement, 1)
 
           endpoint_start = '        {activeView === "endpoint" && ('
           identity_start = '        {activeView === "identity" && ('
@@ -136,22 +88,22 @@ jobs:
               raise SystemExit('endpoint render boundaries not found')
 
           if '<EdrWorkspace' not in app[start:end]:
-              edr_block = '''        {activeView === "endpoint" && (
-                    <section className="workspace-section edr-section">
-                      <EdrWorkspace
-                        state={projections.edr}
-                        devices={Object.values(scenarioState.world.devices)}
-                        initialDeviceId={context.deviceId}
-                        finalized={scenarioState.finalized}
-                        isCollected={isEvidenceCollected}
-                        onCollect={collectEvidence}
-                        onSearchSiem={openSiem}
-                        onOpenCase={() => setActiveView("case")}
-                      />
-                    </section>
-                  )}
-
-          '''
+              edr_block = (
+                  '        {activeView === "endpoint" && (\n'
+                  '          <section className="workspace-section edr-section">\n'
+                  '            <EdrWorkspace\n'
+                  '              state={projections.edr}\n'
+                  '              devices={Object.values(scenarioState.world.devices)}\n'
+                  '              initialDeviceId={context.deviceId}\n'
+                  '              finalized={scenarioState.finalized}\n'
+                  '              isCollected={isEvidenceCollected}\n'
+                  '              onCollect={collectEvidence}\n'
+                  '              onSearchSiem={openSiem}\n'
+                  '              onOpenCase={() => setActiveView("case")}\n'
+                  '            />\n'
+                  '          </section>\n'
+                  '        )}\n\n'
+              )
               app = app[:start] + edr_block + app[end:]
 
           app_path.write_text(app)
