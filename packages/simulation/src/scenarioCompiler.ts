@@ -11,6 +11,15 @@ import type {
 } from "./simulationEvent";
 
 import {
+  createSyntheticHostState,
+} from "./syntheticHost";
+
+import type {
+  SyntheticHostSeed,
+  SyntheticHostState,
+} from "./syntheticHost";
+
+import {
   getScenarioState,
   validateScenarioDefinition,
 } from "./scenario";
@@ -43,6 +52,9 @@ export interface ScenarioDefinitionInput {
   description: string;
 
   initialWorld: WorldSeed;
+
+  syntheticHosts?:
+    readonly SyntheticHostSeed[];
 
   openingEvents:
     readonly SimulationEvent[];
@@ -152,17 +164,50 @@ function requireInvestigationContext(
   }
 }
 
+function compileSyntheticHosts(
+  input: ScenarioDefinitionInput,
+  initialWorld:
+    ScenarioDefinition["initialWorld"],
+): readonly SyntheticHostState[] {
+  const seenDeviceIds = new Set<string>();
+
+  return (
+    input.syntheticHosts ?? []
+  ).map((seed) => {
+    if (seenDeviceIds.has(seed.deviceId)) {
+      throw new Error(
+        `Scenario ${input.id} defines duplicate synthetic host for device: ${seed.deviceId}`,
+      );
+    }
+
+    seenDeviceIds.add(seed.deviceId);
+
+    return createSyntheticHostState(
+      seed,
+      initialWorld,
+    );
+  });
+}
+
 export function compileScenarioDefinition(
   input: ScenarioDefinitionInput,
 ): ScenarioDefinition {
+  const initialWorld =
+    createWorldState(
+      input.initialWorld,
+    );
+  const syntheticHosts =
+    compileSyntheticHosts(
+      input,
+      initialWorld,
+    );
+
   const scenario: ScenarioDefinition = {
     id: input.id,
     name: input.name,
     description: input.description,
-    initialWorld:
-      createWorldState(
-        input.initialWorld,
-      ),
+    initialWorld,
+    syntheticHosts,
     openingEvents:
       structuredClone(
         input.openingEvents,
