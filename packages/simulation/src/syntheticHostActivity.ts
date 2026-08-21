@@ -4,6 +4,10 @@ import type {
 } from "@polymorph/domain";
 
 import type {
+  SimulationEvent,
+} from "./simulationEvent";
+
+import type {
   SyntheticHostConfigValue,
   SyntheticHostServiceStatus,
   SyntheticHostState,
@@ -200,6 +204,132 @@ export function sortSyntheticHostActivity(
       ? timestamp
       : left.id.localeCompare(right.id);
   });
+}
+
+function processStartTimestamp(
+  host: SyntheticHostState,
+  processId: number,
+  events: readonly SimulationEvent[],
+): SimulationTimestamp | undefined {
+  const event = events
+    .filter(
+      (candidate) =>
+        candidate.type === "PROCESS_STARTED" &&
+        candidate.payload.deviceId === host.deviceId &&
+        candidate.payload.processId === String(processId),
+    )
+    .sort((left, right) => {
+      const timestamp = left.timestamp.localeCompare(
+        right.timestamp,
+      );
+
+      return timestamp !== 0
+        ? timestamp
+        : left.id.localeCompare(right.id);
+    })
+    .at(0);
+
+  return event?.timestamp ??
+    host.processes.find(
+      (process) => process.pid === processId,
+    )?.startedAt;
+}
+
+function networkEventsForConnection(
+  host: SyntheticHostState,
+  connection: SyntheticHostState["network"]["connections"][number],
+  events: readonly SimulationEvent[],
+): readonly SimulationEvent[] {
+  return events.filter(
+    (event) =>
+      event.type === "NETWORK_CONNECTION" &&
+      event.payload.deviceId === host.deviceId &&
+      event.payload.protocol === connection.protocol &&
+      event.payload.sourceIp === connection.localAddress &&
+      event.payload.destinationIp === connection.remoteAddress &&
+      event.payload.sourcePort === connection.localPort &&
+      event.payload.destinationPort === connection.remotePort,
+  );
+}
+
+export function deriveSyntheticHostActivity(
+  host: SyntheticHostState,
+  events: readonly SimulationEvent[] = [],
+): readonly SyntheticHostActivity[] {
+  const records: SyntheticHostActivity[] = [];
+
+  for (const process of host.processes) {
+    const startedAt = processStartTimestamp(
+      host,
+      process.pid,
+      events,
+    );
+
+    if (startedAt !== undefined) {
+      records.push({
+        id: `derived:process:${process.pid}:started`,
+        timestamp: startedAt,
+        type: "process_started",
+        processId: process.pid,
+      });
+    }
+
+    if (process.terminatedAt !== undefined) {
+      records.push({
+        id: `derived:process:${process.pid}:terminated`,
+        timestamp: process.terminatedAt,
+        type: "process_terminated",
+        processId: process.pid,
+      });
+    }
+  }
+
+  for (const file of host.files) {
+    if (file.createdAt !== undefined) {
+      records.push({
+        id: `derived:file:${file.path}:created`,
+        timestamp: file.createdAt,
+        type: "file_activity",
+        filePath: file.path,
+        operation: "create",
+      });
+    }
+
+    if (
+      file.modifiedAt !== undefined &&
+      file.modifiedAt !== file.createdAt
+    ) {
+      records.push({
+        id: `derived:file:${file.path}:modified`,
+        timestamp: file.modifiedAt,
+        type: "file_activity",
+        filePath: file.path,
+        operation: "write",
+      });
+    }
+  }
+
+  for (const connection of
+    host.network.connections) {
+    for (const event of networkEventsForConnection(
+      host,
+      connection,
+      events,
+    )) {
+      records.push({
+        id: `derived:connection:${connection.id}:opened:${event.id}`,
+        timestamp: event.timestamp,
+        type: "network_connection",
+        connectionId: connection.id,
+        action: "opened",
+        ...(connection.processId === undefined
+          ? {}
+          : { processId: connection.processId }),
+      });
+    }
+  }
+
+  return sortSyntheticHostActivity(records);
 }
 
 export function validateSyntheticHostActivity(
