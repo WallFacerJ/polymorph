@@ -17,7 +17,8 @@ interface ScenarioControlsProps {
 
 type InterfaceStyle =
   | "midnight"
-  | "graphite";
+  | "graphite"
+  | "retro";
 
 const THEME_STORAGE_KEY =
   "polymorph-interface-style";
@@ -28,9 +29,14 @@ function readInitialStyle(): InterfaceStyle {
       THEME_STORAGE_KEY,
     );
 
-  return stored === "graphite"
-    ? "graphite"
-    : "midnight";
+  if (
+    stored === "graphite" ||
+    stored === "retro"
+  ) {
+    return stored;
+  }
+
+  return "midnight";
 }
 
 function navigateWith(
@@ -127,7 +133,7 @@ export function ScenarioControls({
       </label>
 
       <label>
-        <span>Style</span>
+        <span>Interface</span>
         <select
           aria-label="Select interface style"
           value={interfaceStyle}
@@ -141,7 +147,10 @@ export function ScenarioControls({
             Midnight SOC
           </option>
           <option value="graphite">
-            Graphite
+            Graphite Workbench
+          </option>
+          <option value="retro">
+            Retro Ops 98
           </option>
         </select>
       </label>
