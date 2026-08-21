@@ -60,8 +60,15 @@ jobs:
               deviceScaleFactor: 1,
             });
             const page = await context.newPage();
+            const workspaceButtons = [
+              ['SIEM Search', 'siem'],
+              ['Endpoint', 'endpoint'],
+              ['Identity', 'identity'],
+              ['Case', 'case'],
+              ['Range', 'range'],
+            ];
 
-            for (const theme of ['midnight', 'graphite', 'retro']) {
+            for (const theme of ['midnight', 'retro']) {
               await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
               await page.getByLabel('Select interface style').selectOption(theme);
               await page.waitForTimeout(250);
@@ -70,16 +77,28 @@ jobs:
                 fullPage: true,
               });
 
-              const rangeButton = page.getByRole('button', { name: 'Range', exact: true });
-              if (await rangeButton.count()) {
-                await rangeButton.click();
+              for (const [label, slug] of workspaceButtons) {
+                const button = page.getByRole('button', { name: label, exact: true });
+                if (!(await button.count())) {
+                  continue;
+                }
+
+                await button.click();
                 await page.waitForTimeout(250);
                 await page.screenshot({
-                  path: `theme-previews/${theme}-range.png`,
+                  path: `theme-previews/${theme}-${slug}.png`,
                   fullPage: true,
                 });
               }
             }
+
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
+            await page.getByLabel('Select interface style').selectOption('graphite');
+            await page.waitForTimeout(250);
+            await page.screenshot({
+              path: 'theme-previews/graphite-alerts.png',
+              fullPage: true,
+            });
 
             await browser.close();
           })().catch((error) => {
