@@ -60,6 +60,7 @@ import {
   edrProjection,
   finalizeScenarioState,
   getScenarioState,
+  getScenarioSyntheticHostRelationships,
   identityProjection,
   mergeSimulationEventHistory,
   rebuildProjection,
@@ -190,6 +191,15 @@ function ScenarioWorkspace({
           host.deviceId === rangeDeviceId,
       ),
     [scenario.syntheticHosts, rangeDeviceId],
+  );
+
+  const rangeRelationships = useMemo(
+    () =>
+      getScenarioSyntheticHostRelationships(
+        scenario,
+        rangeDeviceId,
+      ),
+    [scenario, rangeDeviceId],
   );
 
   const rangeReplay = useMemo(
@@ -514,6 +524,7 @@ function ScenarioWorkspace({
           deviceId: rangeInitialHost.deviceId,
           invocation,
           execution,
+          relationships: rangeRelationships,
         });
       const nextRangeEvidenceEvents = [
         ...rangeEvidenceEvents,
@@ -936,6 +947,7 @@ function ScenarioWorkspace({
               <RangeWorkspace
                 device={scenarioState.world.devices[rangeDeviceId]}
                 host={rangeReplay.state}
+                relationships={rangeRelationships}
                 invocations={rangeInvocations}
                 executions={rangeReplay.executions}
                 finalized={scenarioState.finalized}
