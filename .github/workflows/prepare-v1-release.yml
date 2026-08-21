@@ -1,0 +1,84 @@
+name: Prepare v1 release graph
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.head_ref == 'release/v1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v7
+        with:
+          ref: release/v1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Wire release UX and Playwright
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          app_path = Path('apps/web/src/App.tsx')
+          app = app_path.read_text()
+          if 'from "./ScenarioControls"' not in app:
+              marker = '''import {\n  InstructorReviewPanel,\n} from "./InstructorReviewPanel";\n'''
+              addition = '''\nimport {\n  ScenarioControls,\n} from "./ScenarioControls";\n'''
+              if marker not in app:
+                  raise SystemExit('ScenarioControls import marker not found')
+              app = app.replace(marker, marker + addition, 1)
+
+          if '<ScenarioControls' not in app:
+              marker = '''          <div className="topbar-actions">\n            <span'''
+              replacement = '''          <div className="topbar-actions">\n            <ScenarioControls\n              scenarioPath={scenarioPath}\n              instructorMode={instructorMode}\n            />\n            <span'''
+              if marker not in app:
+                  raise SystemExit('topbar controls marker not found')
+              app = app.replace(marker, replacement, 1)
+
+          app_path.write_text(app)
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['version'] = '1.0.0'
+          package['scripts']['test:e2e'] = 'playwright test'
+          package.setdefault('devDependencies', {})['@playwright/test'] = '^1.55.0'
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+
+          ci_path = Path('.github/workflows/ci.yml')
+          ci = ci_path.read_text()
+          if 'Browser E2E' not in ci:
+              marker = '''      - name: Test\n        run: pnpm test:run\n'''
+              addition = '''\n      - name: Install Playwright browser\n        run: pnpm exec playwright install --with-deps chromium\n\n      - name: Browser E2E\n        run: pnpm test:e2e\n'''
+              if marker not in ci:
+                  raise SystemExit('CI test marker not found')
+              ci = ci.replace(marker, marker + addition, 1)
+              ci_path.write_text(ci)
+
+      - name: Regenerate pnpm lockfile
+        run: pnpm install
+
+      - name: Commit prepared release graph
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx package.json pnpm-lock.yaml .github/workflows/ci.yml
+          git commit -m "release: wire v1 UX and browser tests"
+          git push origin HEAD:release/v1
