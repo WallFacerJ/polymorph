@@ -188,17 +188,18 @@ export function getSyntheticHostActivityRefs(
 export function sortSyntheticHostActivity(
   records: readonly SyntheticHostActivity[],
 ): readonly SyntheticHostActivity[] {
-  return structuredClone(records).sort(
-    (left, right) => {
-      const timestamp = left.timestamp.localeCompare(
-        right.timestamp,
-      );
+  const cloned: SyntheticHostActivity[] =
+    structuredClone([...records]);
 
-      return timestamp !== 0
-        ? timestamp
-        : left.id.localeCompare(right.id);
-    },
-  );
+  return cloned.sort((left, right) => {
+    const timestamp = left.timestamp.localeCompare(
+      right.timestamp,
+    );
+
+    return timestamp !== 0
+      ? timestamp
+      : left.id.localeCompare(right.id);
+  });
 }
 
 export function validateSyntheticHostActivity(
