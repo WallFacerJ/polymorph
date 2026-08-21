@@ -267,6 +267,136 @@ test("Range file acquisition preserves authored SHA-256 provenance in Case", asy
   );
 });
 
+test("Range host history separates benign and suspicious activity and survives containment", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const range = await openRange(page);
+  const terminal = range.locator(
+    ".range-terminal-output",
+  );
+
+  await runRangeCommand(page, "history");
+  const fullHistory = range
+    .locator(".range-command-block")
+    .last();
+
+  await expect(fullHistory).toContainText(
+    "Process 4104 started",
+  );
+  await expect(fullHistory).toContainText(
+    "Connection range-connection-teams opened",
+  );
+  await expect(fullHistory).toContainText(
+    "Process 8420 started",
+  );
+  await expect(fullHistory).toContainText(
+    "Connection range-connection-powershell opened",
+  );
+
+  const powershell = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: "powershell.exe" });
+
+  await powershell.getByRole(
+    "button",
+    { name: "Trace history" },
+  ).click();
+  await expect(
+    page.getByLabel("Range command"),
+  ).toHaveValue("history process 8420");
+  await page.getByRole(
+    "button",
+    { name: "Run", exact: true },
+  ).click();
+
+  const suspiciousHistory = range
+    .locator(".range-command-block")
+    .last();
+
+  await expect(suspiciousHistory).toContainText(
+    "Process 8420 started",
+  );
+  await expect(suspiciousHistory).toContainText(
+    "Connection range-connection-powershell opened",
+  );
+  await expect(suspiciousHistory).not.toContainText(
+    "range-connection-teams",
+  );
+  await expect(suspiciousHistory).not.toContainText(
+    "Process 4104 started",
+  );
+
+  await suspiciousHistory.getByRole(
+    "button",
+    { name: "Acquire artifact to Case" },
+  ).click();
+  await openCase(page);
+
+  const evidenceLedger = page.getByRole(
+    "region",
+    { name: "Case evidence ledger" },
+  );
+  const provenance = page.getByLabel(
+    "Range artifact provenance",
+  );
+
+  await expect(evidenceLedger).toContainText(
+    "Range evidence collected (history): history:process:8420",
+  );
+  await expect(evidenceLedger).toContainText(
+    "ip: 203.0.113.77",
+  );
+  await expect(provenance).toContainText(
+    "source: history:process:8420",
+  );
+  await expect(provenance).toContainText(
+    "lineage: process:8420",
+  );
+
+  await openRange(page);
+  await runRangeCommand(page, "kill 8420");
+
+  const connection = range
+    .locator(".range-inspector-row")
+    .filter({ hasText: "203.0.113.77:443" });
+
+  await expect(connection).toContainText("closed");
+
+  await runRangeCommand(
+    page,
+    "history process 8420",
+  );
+  const afterContainment = range
+    .locator(".range-command-block")
+    .last();
+
+  await expect(afterContainment).toContainText(
+    "Connection range-connection-powershell opened",
+  );
+  await expect(terminal).toContainText(
+    "Terminated synthetic host process 8420.",
+  );
+
+  await page.getByRole(
+    "button",
+    { name: "Reset scenario" },
+  ).click();
+  const resetRange = await openRange(page);
+
+  await runRangeCommand(
+    page,
+    "history process 8420",
+  );
+  await expect(
+    resetRange
+      .locator(".range-command-block")
+      .last(),
+  ).toContainText(
+    "Connection range-connection-powershell opened",
+  );
+});
+
 test("Range relationship pivots preserve cross-artifact lineage through containment", async ({
   page,
 }) => {
