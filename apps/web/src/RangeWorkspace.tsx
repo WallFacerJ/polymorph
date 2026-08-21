@@ -390,20 +390,27 @@ export function RangeWorkspace({
                     )}
                     {execution &&
                       execution.result.kind !== "mutation" && (
-                        <button
-                          type="button"
-                          className="evidence-button"
-                          disabled={finalized || collected}
-                          onClick={() =>
-                            collectExecution(index)
-                          }
-                        >
-                          {collected
-                            ? "Range evidence collected"
-                            : finalized
-                              ? "Run finalized"
-                              : "Collect output to Case"}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="evidence-button"
+                            disabled={finalized || collected}
+                            onClick={() =>
+                              collectExecution(index)
+                            }
+                          >
+                            {collected
+                              ? "Artifact acquired"
+                              : finalized
+                                ? "Run finalized"
+                                : "Acquire artifact to Case"}
+                          </button>
+                          {collected && (
+                            <div className="range-audit-line">
+                              artifact {invocation.id}-artifact · immutable acquisition snapshot
+                            </div>
+                          )}
+                        </>
                       )}
                   </div>
                 );

@@ -140,7 +140,7 @@ test("Range rejects unknown commands and reset reconstructs the authored host", 
   ).toContainText("running");
 });
 
-test("Range observation can be collected into Case with Range provenance", async ({
+test("Range network acquisition appears in Case with artifact provenance", async ({
   page,
 }) => {
   await page.goto("/");
@@ -149,11 +149,14 @@ test("Range observation can be collected into Case with Range provenance", async
   await runRangeCommand(page, "net");
   await range.getByRole(
     "button",
-    { name: "Collect output to Case" },
+    { name: "Acquire artifact to Case" },
   ).click();
 
   await expect(range).toContainText(
-    "Range evidence collected",
+    "Artifact acquired",
+  );
+  await expect(range).toContainText(
+    "artifact range-command-1-artifact · immutable acquisition snapshot",
   );
 
   await page.locator(".workspace-nav").getByRole(
@@ -169,14 +172,29 @@ test("Range observation can be collected into Case with Range provenance", async
     "region",
     { name: "Case evidence ledger" },
   );
+  const provenance = page.getByLabel(
+    "Range artifact provenance",
+  );
 
   await expect(caseWorkspace).toBeVisible();
   await expect(evidenceLedger).toContainText(
-    "Range evidence collected (network): network-state",
+    "Range evidence collected (network): network:state",
   );
   await expect(evidenceLedger).toContainText("range");
   await expect(evidenceLedger).toContainText(
     "ip: 203.0.113.77",
+  );
+  await expect(provenance).toContainText(
+    "artifact: range-command-1-artifact",
+  );
+  await expect(provenance).toContainText(
+    "source: network:state",
+  );
+  await expect(provenance).toContainText(
+    "method: controlled range command",
+  );
+  await expect(provenance).toContainText(
+    "integrity: unavailable (source did not provide integrity)",
   );
 
   await page.getByRole(
@@ -196,6 +214,75 @@ test("Range observation can be collected into Case with Range provenance", async
   ).toContainText(
     "Collect events from SIEM, Endpoint, Identity, or Investigation",
   );
+});
+
+test("Range file acquisition preserves authored SHA-256 provenance in Case", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const range = await openRange(page);
+
+  await runRangeCommand(
+    page,
+    "cat /Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+  );
+  await range.getByRole(
+    "button",
+    { name: "Acquire artifact to Case" },
+  ).click();
+
+  await expect(range).toContainText(
+    "Artifact acquired",
+  );
+
+  await page.locator(".workspace-nav").getByRole(
+    "button",
+    { name: /^Case/ },
+  ).click();
+
+  const provenance = page.getByLabel(
+    "Range artifact provenance",
+  );
+
+  await expect(provenance).toContainText(
+    "artifact: range-command-1-artifact",
+  );
+  await expect(provenance).toContainText(
+    "source: /Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+  );
+  await expect(provenance).toContainText(
+    "integrity: sha256 9e6c9d2f14d2178fd2f7fbf7712c610d53c67c84f2ed8086697245db4f73fa1b",
+  );
+});
+
+test("Finalized runs cannot acquire new Range artifacts", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const range = await openRange(page);
+
+  await runRangeCommand(page, "net");
+
+  await page.locator(".workspace-nav").getByRole(
+    "button",
+    { name: "Investigation", exact: true },
+  ).click();
+  await page.getByRole(
+    "button",
+    { name: "Finalize investigation" },
+  ).click();
+
+  await openRange(page);
+
+  await expect(
+    page.getByLabel("Range command"),
+  ).toBeDisabled();
+  await expect(
+    range.getByRole(
+      "button",
+      { name: "Run finalized" },
+    ),
+  ).toBeDisabled();
 });
 
 test("Range containment becomes canonical EDR and SIEM response history", async ({

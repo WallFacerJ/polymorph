@@ -23,6 +23,8 @@ export * from "./siemQuery";
 export * from "./analystCase";
 export * from "./incidentCase";
 export * from "./syntheticHost";
+export * from "./rangeArtifact";
+export * from "./rangeArtifactEvent";
 export * from "./rangeEventBridge";
 export * from "./scenarioOutcome";
 export * from "./scenarioScore";

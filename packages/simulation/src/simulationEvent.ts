@@ -4,6 +4,10 @@ import type {
   EntityStatus,
 } from "@polymorph/domain";
 
+import type {
+  RangeArtifact,
+} from "./rangeArtifact";
+
 export type EventOf<
   TType extends string,
   TPayload,
@@ -266,9 +270,30 @@ export type HostEvidenceKind =
   | "log"
   | "network";
 
+export type HostEvidenceAcquisitionMethod =
+  "controlled_range_command";
+
+export type HostEvidenceIntegrity =
+  | {
+      status: "authored";
+      algorithm: "sha256";
+      value: string;
+    }
+  | {
+      status: "unavailable";
+      reason: "source_did_not_provide_integrity";
+    };
+
 export interface HostEvidenceCollectedPayload {
   deviceId: EntityId;
   evidenceKind: HostEvidenceKind;
+  artifactId?: EntityId;
+  artifact?: RangeArtifact;
+  sourceInvocationId?: string;
+  acquisitionMethod?: HostEvidenceAcquisitionMethod;
+  acquiredAt?: string;
+  sourceReference?: string;
+  integrity?: HostEvidenceIntegrity;
   targetId: string;
   summary: string;
   relatedEntityIds: EntityId[];
