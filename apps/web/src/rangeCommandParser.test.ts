@@ -32,6 +32,34 @@ describe("Range command parser", () => {
     });
   });
 
+  it("compiles time-aware host history queries without shell execution", () => {
+    expect(
+      parseRangeCommand("history"),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "list_activity",
+      },
+    });
+
+    expect(
+      parseRangeCommand("history process 8420"),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "list_activity",
+        objectKind: "process",
+        objectId: "8420",
+      },
+    });
+
+    expect(() =>
+      parseRangeCommand("history account account-smartinez"),
+    ).toThrow(
+      "Range history does not support object kind: account.",
+    );
+  });
+
   it("compiles supported mutations without constructing shell commands", () => {
     expect(
       parseRangeCommand("kill 8420"),
