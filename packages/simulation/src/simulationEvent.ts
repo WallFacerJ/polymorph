@@ -248,6 +248,24 @@ export type HostServiceStateChangedEvent =
     HostServiceStateChangedPayload
   >;
 
+export type HostServiceStartupMode =
+  | "automatic"
+  | "manual"
+  | "disabled";
+
+export interface HostServiceStartupModeChangedPayload {
+  deviceId: EntityId;
+  serviceName: string;
+  previousStartupMode: HostServiceStartupMode;
+  startupMode: HostServiceStartupMode;
+}
+
+export type HostServiceStartupModeChangedEvent =
+  EventOf<
+    "HOST_SERVICE_STARTUP_MODE_CHANGED",
+    HostServiceStartupModeChangedPayload
+  >;
+
 export interface HostFileQuarantinedPayload {
   deviceId: EntityId;
   originalPath: string;
@@ -310,6 +328,7 @@ export type HostEvidenceCollectedEvent =
 export type HostEvent =
   | HostProcessTerminatedEvent
   | HostServiceStateChangedEvent
+  | HostServiceStartupModeChangedEvent
   | HostFileQuarantinedEvent
   | HostEvidenceCollectedEvent;
 
