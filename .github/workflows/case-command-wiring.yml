@@ -1,0 +1,94 @@
+name: Wire incident command Case
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/incident-command-case'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/incident-command-case
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Replace notebook Case surface
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/App.tsx')
+          text = path.read_text()
+
+          if 'from "./CaseWorkspace"' not in text:
+              marker = '} from "./IdentityWorkspace";\n'
+              insertion = marker + '\nimport {\n  CaseWorkspace,\n} from "./CaseWorkspace";\n'
+              if marker not in text:
+                  raise SystemExit('Identity import marker not found')
+              text = text.replace(marker, insertion, 1)
+
+          text = text.replace('  resolveCollectedEvidence,\n', '', 1)
+
+          derived_start = text.find('  const siemByEventId = useMemo(\n')
+          user_start = text.find('  const user =\n', derived_start)
+          if derived_start >= 0 and user_start >= 0:
+              text = text[:derived_start] + text[user_start:]
+          elif derived_start >= 0 or user_start < 0:
+              raise SystemExit('unexpected Case-derived local boundaries')
+
+          case_start = text.find('        {activeView === "case" && (')
+          main_close = text.find('      </main>', case_start)
+          if case_start < 0 or main_close < 0:
+              raise SystemExit('Case render boundaries not found')
+
+          block = '\n'.join([
+              '        {activeView === "case" && (',
+              '          <section className="workspace-section case-section">',
+              '            <CaseWorkspace',
+              '              scenarioId={scenario.id}',
+              '              scenarioName={scenario.name}',
+              '              state={analystCase}',
+              '              events={scenarioState.events}',
+              '              actions={responseActions}',
+              '              performedActionIds={scenarioState.performedActionIds}',
+              '              outcome={scenarioState.outcome}',
+              '              finalized={scenarioState.finalized}',
+              '              findingTitle={findingTitle}',
+              '              findingSummary={findingSummary}',
+              '              selectedEvidenceIds={selectedEvidenceIds}',
+              '              caseError={caseError}',
+              '              onFindingTitleChange={setFindingTitle}',
+              '              onFindingSummaryChange={setFindingSummary}',
+              '              onToggleEvidence={toggleFindingEvidence}',
+              '              onSubmitFinding={submitFinding}',
+              '              onCaseChange={setAnalystCase}',
+              '              onSearchSiem={openSiem}',
+              '              onOpenEndpoint={() => setActiveView("endpoint")}',
+              '              onOpenIdentity={() => setActiveView("identity")}',
+              '            />',
+              '          </section>',
+              '        )}',
+              '',
+          ])
+
+          text = text[:case_start] + block + text[main_close:]
+          path.write_text(text)
+          PY
+
+      - name: Commit Case wiring
+        run: |
+          if git diff --quiet; then
+            echo "No Case wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/App.tsx
+          git commit -m "feat: wire incident command Case workflow"
+          git push origin HEAD:feat/incident-command-case
