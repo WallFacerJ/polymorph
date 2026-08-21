@@ -84,6 +84,19 @@ describe("Range command parser", () => {
           "/Quarantine/finance-update.ps1",
       },
     });
+
+    expect(
+      parseRangeCommand(
+        "set-startup AcmeBackupAgent disabled",
+      ),
+    ).toEqual({
+      kind: "runtime",
+      command: {
+        type: "set_service_startup_mode",
+        name: "AcmeBackupAgent",
+        startupMode: "disabled",
+      },
+    });
   });
 
   it("supports quoted arguments and rejects unknown or malformed input", () => {
@@ -107,6 +120,13 @@ describe("Range command parser", () => {
       parseRangeCommand("kill powershell"),
     ).toThrow(
       "Range command kill requires a positive integer pid.",
+    );
+    expect(() =>
+      parseRangeCommand(
+        "set-startup AcmeBackupAgent on-demand",
+      ),
+    ).toThrow(
+      "Range command set-startup requires automatic, manual, or disabled; received: on-demand.",
     );
     expect(() =>
       parseRangeCommand("cat 'unterminated"),
