@@ -1,0 +1,349 @@
+import type {
+  EntityId,
+} from "@polymorph/domain";
+
+import type {
+  AnalystCaseState,
+} from "./analystCase";
+
+import {
+  rebuildProjection,
+} from "./projection";
+
+import type {
+  ScenarioAction,
+} from "./scenario";
+
+import type {
+  ScenarioOutcome,
+} from "./scenarioOutcome";
+
+import type {
+  SimulationEvent,
+  SimulationEventType,
+} from "./simulationEvent";
+
+import {
+  siemProjection,
+} from "./siemProjection";
+
+export type CaseSourceTool =
+  | "identity"
+  | "edr"
+  | "siem";
+
+export interface CaseIndicator {
+  kind: "ip";
+  value: string;
+}
+
+export interface CaseEvidenceRecord {
+  eventId: EntityId;
+  timestamp: string;
+  eventType: SimulationEventType;
+  source: string;
+  primaryTool: CaseSourceTool;
+  message: string;
+  relatedEntityIds: readonly EntityId[];
+  indicators: readonly CaseIndicator[];
+}
+
+export interface CaseDecisionRecord {
+  actionId: EntityId;
+  label: string;
+  description: string;
+  eventIds: readonly EntityId[];
+}
+
+export interface IncidentCaseReport {
+  phase: AnalystCaseState["phase"];
+  outcomeStatus: ScenarioOutcome["status"];
+  evidenceCount: number;
+  findingCount: number;
+  hypothesisCount: number;
+  supportedHypothesisCount: number;
+  openTaskCount: number;
+  completedTaskCount: number;
+  decisionCount: number;
+  summary: string;
+}
+
+function primaryToolForEvent(
+  type: SimulationEventType,
+): CaseSourceTool {
+  switch (type) {
+    case "AUTH_LOGIN_SUCCEEDED":
+    case "AUTH_LOGIN_FAILED":
+    case "ACCOUNT_DISABLED":
+    case "ACCOUNT_ENABLED":
+    case "SESSION_STARTED":
+    case "SESSION_REVOKED":
+      return "identity";
+
+    case "PROCESS_STARTED":
+    case "FILE_ACCESSED":
+    case "NETWORK_CONNECTION":
+    case "ENDPOINT_HEARTBEAT":
+    case "ALERT_CREATED":
+      return "edr";
+  }
+}
+
+function uniqueStrings(
+  values: readonly (string | undefined)[],
+): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    if (!value || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    result.push(value);
+  }
+
+  return result;
+}
+
+function getKnownEntityIds(
+  event: SimulationEvent,
+): readonly EntityId[] {
+  const shared = [
+    event.actorId,
+    event.subjectId,
+  ];
+
+  switch (event.type) {
+    case "AUTH_LOGIN_SUCCEEDED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.accountId,
+        event.payload.userId,
+        event.payload.deviceId,
+        event.payload.applicationId,
+      ]);
+
+    case "AUTH_LOGIN_FAILED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+        event.payload.applicationId,
+      ]);
+
+    case "ACCOUNT_DISABLED":
+    case "ACCOUNT_ENABLED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.accountId,
+      ]);
+
+    case "SESSION_STARTED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.sessionId,
+        event.payload.accountId,
+        event.payload.deviceId,
+        event.payload.applicationId,
+      ]);
+
+    case "SESSION_REVOKED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.sessionId,
+      ]);
+
+    case "PROCESS_STARTED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+        event.payload.accountId,
+      ]);
+
+    case "FILE_ACCESSED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.fileId,
+        event.payload.deviceId,
+        event.payload.accountId,
+      ]);
+
+    case "NETWORK_CONNECTION":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+      ]);
+
+    case "ENDPOINT_HEARTBEAT":
+      return uniqueStrings([
+        ...shared,
+        event.payload.deviceId,
+      ]);
+
+    case "ALERT_CREATED":
+      return uniqueStrings([
+        ...shared,
+        event.payload.alertId,
+        event.payload.applicationId,
+        ...event.payload.relatedEntityIds,
+      ]);
+  }
+}
+
+function getIndicators(
+  event: SimulationEvent,
+): readonly CaseIndicator[] {
+  let ips: readonly string[] = [];
+
+  switch (event.type) {
+    case "AUTH_LOGIN_SUCCEEDED":
+    case "AUTH_LOGIN_FAILED":
+      ips = event.payload.sourceIp
+        ? [event.payload.sourceIp]
+        : [];
+      break;
+
+    case "NETWORK_CONNECTION":
+      ips = [
+        event.payload.sourceIp,
+        event.payload.destinationIp,
+      ];
+      break;
+
+    case "ENDPOINT_HEARTBEAT":
+      ips = event.payload.ipAddresses;
+      break;
+
+    default:
+      ips = [];
+  }
+
+  return uniqueStrings(ips).map(
+    (value) => ({
+      kind: "ip" as const,
+      value,
+    }),
+  );
+}
+
+export function buildCaseEvidenceRecords(
+  state: AnalystCaseState,
+  events: readonly SimulationEvent[],
+): readonly CaseEvidenceRecord[] {
+  const eventById = new Map(
+    events.map((event) => [event.id, event]),
+  );
+  const siemById = new Map(
+    rebuildProjection(
+      siemProjection,
+      events,
+    ).events.map((record) => [
+      record.eventId,
+      record,
+    ]),
+  );
+
+  return state.collectedEventIds.map(
+    (eventId) => {
+      const event = eventById.get(eventId);
+
+      if (!event) {
+        throw new Error(
+          `Analyst evidence references unavailable event: ${eventId}`,
+        );
+      }
+
+      return {
+        eventId,
+        timestamp: event.timestamp,
+        eventType: event.type,
+        source: event.source,
+        primaryTool:
+          primaryToolForEvent(event.type),
+        message:
+          siemById.get(eventId)?.message ??
+          event.type,
+        relatedEntityIds:
+          getKnownEntityIds(event),
+        indicators: getIndicators(event),
+      };
+    },
+  );
+}
+
+export function buildCaseDecisionRecords(
+  actions: readonly ScenarioAction[],
+  performedActionIds: readonly EntityId[],
+): readonly CaseDecisionRecord[] {
+  const actionById = new Map(
+    actions.map((action) => [
+      action.id,
+      action,
+    ]),
+  );
+
+  return performedActionIds.map((actionId) => {
+    const action = actionById.get(actionId);
+
+    if (!action) {
+      throw new Error(
+        `Performed response action is unavailable: ${actionId}`,
+      );
+    }
+
+    return {
+      actionId,
+      label: action.label,
+      description: action.description,
+      eventIds: action.events.map(
+        (event) => event.id,
+      ),
+    };
+  });
+}
+
+export function buildIncidentCaseReport(
+  state: AnalystCaseState,
+  actions: readonly ScenarioAction[],
+  performedActionIds: readonly EntityId[],
+  outcome: ScenarioOutcome,
+): IncidentCaseReport {
+  const decisions = buildCaseDecisionRecords(
+    actions,
+    performedActionIds,
+  );
+  const supportedHypothesisCount =
+    state.hypotheses.filter(
+      (hypothesis) =>
+        hypothesis.status === "supported",
+    ).length;
+  const completedTaskCount =
+    state.tasks.filter(
+      (task) => task.status === "done",
+    ).length;
+  const openTaskCount =
+    state.tasks.length - completedTaskCount;
+
+  const summary = [
+    `Case phase: ${state.phase}.`,
+    `${state.collectedEventIds.length} evidence item(s), ${state.findings.length} finding(s), and ${state.hypotheses.length} hypothesis/hypotheses are recorded.`,
+    `${openTaskCount} task(s) remain open; ${completedTaskCount} are complete.`,
+    `${decisions.length} response decision(s) were performed.`,
+    `Current run outcome: ${outcome.status}.`,
+  ].join(" ");
+
+  return {
+    phase: state.phase,
+    outcomeStatus: outcome.status,
+    evidenceCount:
+      state.collectedEventIds.length,
+    findingCount: state.findings.length,
+    hypothesisCount: state.hypotheses.length,
+    supportedHypothesisCount,
+    openTaskCount,
+    completedTaskCount,
+    decisionCount: decisions.length,
+    summary,
+  };
+}
