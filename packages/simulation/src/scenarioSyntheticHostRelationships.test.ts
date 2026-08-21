@@ -13,6 +13,10 @@ import {
 } from "../../schema/src/scenario";
 
 import {
+  validateScenarioDefinition,
+} from "./scenario";
+
+import {
   compileScenarioDefinition,
 } from "./scenarioCompiler";
 
@@ -111,6 +115,34 @@ describe("scenario synthetic host relationships", () => {
       }),
     ).toThrow(
       "Synthetic host relationship rel-missing-file references missing file: /missing.ps1",
+    );
+  });
+
+  it("revalidates relationship sets for programmatically constructed scenarios", () => {
+    const scenario = compileScenarioDefinition(
+      loadScenarioInput(),
+    );
+
+    expect(() =>
+      validateScenarioDefinition({
+        ...scenario,
+        syntheticHostRelationships: [
+          {
+            deviceId: "device-fin-lt-04",
+            relationships: [
+              {
+                id: "rel-invalid-after-compile",
+                type: "process_file",
+                processId: 8420,
+                filePath: "/missing-after-compile.ps1",
+                operation: "read",
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(
+      "Synthetic host relationship rel-invalid-after-compile references missing file: /missing-after-compile.ps1",
     );
   });
 });
