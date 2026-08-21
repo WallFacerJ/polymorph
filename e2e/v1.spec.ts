@@ -340,3 +340,48 @@ test("interface style persists across reloads", async ({
     "graphite",
   );
 });
+
+test("Retro Ops style is selectable and persists with retro visual tokens", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const styleSelector = page.getByLabel(
+    "Select interface style",
+  );
+
+  await styleSelector.selectOption("retro");
+
+  await expect(page.locator("html"))
+    .toHaveAttribute("data-theme", "retro");
+  await expect(styleSelector)
+    .toHaveValue("retro");
+
+  const tokens = await page.evaluate(() => {
+    const styles = getComputedStyle(
+      document.documentElement,
+    );
+
+    return {
+      accent: styles
+        .getPropertyValue("--pm-accent")
+        .trim(),
+      radius: styles
+        .getPropertyValue("--pm-radius-panel")
+        .trim(),
+    };
+  });
+
+  expect(tokens.accent).toBe("#00e9ff");
+  expect(tokens.radius).toBe("3px");
+
+  await page.reload();
+
+  await expect(
+    page.getByLabel(
+      "Select interface style",
+    ),
+  ).toHaveValue("retro");
+  await expect(page.locator("html"))
+    .toHaveAttribute("data-theme", "retro");
+});

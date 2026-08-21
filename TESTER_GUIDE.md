@@ -21,7 +21,7 @@ That is enough for a useful first-time test.
 Try any of these only if you want to:
 
 - Switch to another scenario and see whether the workflow still feels obvious.
-- Change **Style** between **Midnight SOC** and **Graphite** and tell us which feels more professional/readable.
+- Change **Interface** among **Midnight SOC**, **Graphite Workbench**, and **Retro Ops 98**. Tell us which feels most professional, which is easiest to read, and whether the tool workspaces feel visually distinct.
 - Finalize after only one useful response action and see whether the partial result makes sense.
 - Take a risky response action and see whether the post-incident penalty is explained clearly.
 - After finalization, try to change evidence, findings, or response actions. The submitted case should remain read-only until reset.
@@ -51,7 +51,8 @@ Did the final result/score make sense?:
 Best part:
 One thing I would change:
 Anything broken or unexpected:
-Preferred style: Midnight SOC / Graphite / no preference
+Preferred interface: Midnight SOC / Graphite Workbench / Retro Ops 98 / no preference
+Did SIEM / Endpoint / Identity / Case / Range feel visually distinct?:
 ```
 
 ## Technical/local fallback
