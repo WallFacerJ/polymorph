@@ -1,0 +1,75 @@
+name: Wire Range scenario schema
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    if: github.head_ref == 'feat/range-workspace'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/range-workspace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wire synthetic hosts into scenario contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          schema_path = Path('packages/schema/src/scenario.ts')
+          schema = schema_path.read_text()
+
+          if 'from "./syntheticHost"' not in schema:
+              marker = 'import {\n  scenarioObjectiveSchema,\n} from "./scenarioObjective";\n'
+              insertion = marker + '\nimport {\n  syntheticHostScenarioSchema,\n} from "./syntheticHost";\n'
+              if marker not in schema:
+                  raise SystemExit('scenario objective import marker not found')
+              schema = schema.replace(marker, insertion, 1)
+
+          if 'syntheticHosts:' not in schema:
+              marker = '    initialWorld:\n      scenarioWorldSeedSchema,\n'
+              insertion = marker + '    syntheticHosts:\n      z.array(syntheticHostScenarioSchema)\n        .default([]),\n'
+              if marker not in schema:
+                  raise SystemExit('scenario spec initialWorld marker not found')
+              schema = schema.replace(marker, insertion, 1)
+
+          schema_path.write_text(schema)
+
+          runtime_path = Path('packages/simulation/src/scenario.ts')
+          runtime = runtime_path.read_text()
+
+          if 'SyntheticHostState' not in runtime:
+              marker = 'import type {\n  WorldState,\n} from "./worldState";\n'
+              insertion = marker + '\nimport type {\n  SyntheticHostState,\n} from "./syntheticHost";\n'
+              if marker not in runtime:
+                  raise SystemExit('world state import marker not found')
+              runtime = runtime.replace(marker, insertion, 1)
+
+          if '  syntheticHosts?:\n' not in runtime:
+              marker = '  initialWorld: WorldState;\n\n'
+              insertion = marker + '  syntheticHosts?:\n    readonly SyntheticHostState[];\n\n'
+              if marker not in runtime:
+                  raise SystemExit('ScenarioDefinition initialWorld marker not found')
+              runtime = runtime.replace(marker, insertion, 1)
+
+          runtime_path.write_text(runtime)
+          PY
+
+      - name: Commit Range schema wiring
+        run: |
+          if git diff --quiet; then
+            echo "No Range schema wiring changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- packages/schema/src/scenario.ts packages/simulation/src/scenario.ts
+          git commit -m "feat: wire synthetic hosts into scenarios"
+          git push origin HEAD:feat/range-workspace
