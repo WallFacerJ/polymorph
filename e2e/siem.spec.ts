@@ -74,7 +74,6 @@ test("SIEM search filters noisy telemetry and preserves evidence in Case", async
       name: "Build your evidence-backed finding",
     }),
   ).toBeVisible();
-  await expect(page).toContainText;
   await expect(
     page.getByText(
       "event-compromise-network",
