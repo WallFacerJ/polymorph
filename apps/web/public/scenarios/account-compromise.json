@@ -964,6 +964,36 @@
           "HKLM/Software/Acme/Telemetry/Enabled": true,
           "HKLM/System/CurrentControlSet/Services/AcmeBackupAgent/Start": 2
         },
+        "relationships": [
+          {
+            "id": "rel-winword-quarterly-review",
+            "type": "process_file",
+            "processId": 6172,
+            "filePath": "/Users/smartinez/Downloads/QuarterlyReview.docm",
+            "operation": "execute"
+          },
+          {
+            "id": "rel-powershell-finance-update",
+            "type": "process_file",
+            "processId": 8420,
+            "filePath": "/Users/smartinez/AppData/Local/Temp/finance-update.ps1",
+            "operation": "write"
+          },
+          {
+            "id": "rel-backup-agent-startup",
+            "type": "service_configuration",
+            "serviceName": "AcmeBackupAgent",
+            "key": "HKLM/System/CurrentControlSet/Services/AcmeBackupAgent/Start",
+            "purpose": "startup"
+          },
+          {
+            "id": "rel-telemetry-policy",
+            "type": "service_configuration",
+            "serviceName": "AcmeTelemetry",
+            "key": "HKLM/Software/Acme/Telemetry/Enabled",
+            "purpose": "policy"
+          }
+        ],
         "logs": [
           {
             "id": "range-log-word-open",
