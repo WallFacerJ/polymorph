@@ -4,6 +4,10 @@ import type {
   EntityStatus,
 } from "@polymorph/domain";
 
+import type {
+  RangeArtifact,
+} from "./rangeArtifact";
+
 export type EventOf<
   TType extends string,
   TPayload,
@@ -284,6 +288,7 @@ export interface HostEvidenceCollectedPayload {
   deviceId: EntityId;
   evidenceKind: HostEvidenceKind;
   artifactId?: EntityId;
+  artifact?: RangeArtifact;
   sourceInvocationId?: string;
   acquisitionMethod?: HostEvidenceAcquisitionMethod;
   acquiredAt?: string;
