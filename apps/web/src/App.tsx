@@ -220,23 +220,6 @@ function ScenarioWorkspace({
         context.alertId,
     );
 
-  const process =
-    projections.edr.processes.find(
-      (candidate) =>
-        alert?.relatedEventIds.includes(
-          candidate.eventId,
-        ),
-    ) ?? projections.edr.processes[0];
-
-  const connection =
-    projections.edr.networkConnections.find(
-      (candidate) =>
-        alert?.relatedEventIds.includes(
-          candidate.eventId,
-        ),
-    ) ??
-    projections.edr.networkConnections[0];
-
   const loginActivity =
     projections.identity.activity.find(
       (activity) =>
