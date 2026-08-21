@@ -114,7 +114,7 @@ test("Endpoint pivots into a coherent synthetic host and supports controlled inv
 
   const powershellState = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "8420" });
+    .filter({ hasText: /powershell\.exe8420/ });
 
   await expect(powershellState)
     .toContainText("terminated");
@@ -156,7 +156,7 @@ test("Range rejects unknown commands and reset reconstructs the authored host", 
   await expect(
     range
       .locator(".range-inspector-row")
-      .filter({ hasText: "8420" }),
+      .filter({ hasText: /powershell\.exe8420/ }),
   ).toContainText("running");
 });
 
@@ -308,7 +308,7 @@ test("Range host history separates benign and suspicious activity and survives c
 
   const adminPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "7300" });
+    .filter({ hasText: /powershell\.exe7300/ });
 
   await adminPowershell.getByRole(
     "button",
@@ -353,7 +353,7 @@ test("Range host history separates benign and suspicious activity and survives c
 
   const suspiciousPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "8420" });
+    .filter({ hasText: /powershell\.exe8420/ });
 
   await suspiciousPowershell.getByRole(
     "button",
@@ -489,7 +489,7 @@ test("Range relationship pivots preserve distinct PowerShell lineage through con
 
   const adminPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "7300" });
+    .filter({ hasText: /powershell\.exe7300/ });
 
   await adminPowershell.getByRole(
     "button",
@@ -526,7 +526,7 @@ test("Range relationship pivots preserve distinct PowerShell lineage through con
 
   const suspiciousPowershell = range
     .locator(".range-inspector-row")
-    .filter({ hasText: "8420" });
+    .filter({ hasText: /powershell\.exe8420/ });
 
   await suspiciousPowershell.getByRole(
     "button",
