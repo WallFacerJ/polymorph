@@ -106,6 +106,15 @@ export function ScenarioControls({
           ? "Student mode"
           : "Instructor mode"}
       </button>
+
+      <a
+        className="tester-guide-link"
+        href="https://github.com/WallFacerJ/polymorph/blob/main/TESTER_GUIDE.md"
+        target="_blank"
+        rel="noreferrer"
+      >
+        First-time test guide
+      </a>
     </div>
   );
 }
