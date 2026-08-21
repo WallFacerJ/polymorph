@@ -17,7 +17,9 @@ export const RANGE_COMMAND_HELP = [
   "ls [prefix]",
   "cat <path>",
   "ps",
+  "process <pid>",
   "services",
+  "service <name>",
   "users",
   "groups",
   "config <key>",
@@ -134,6 +136,22 @@ function requireNoExtraArgs(
   );
 }
 
+function requirePositivePid(
+  value: string | undefined,
+  usage: string,
+): number {
+  const rawPid = requireArgument(value, usage);
+  const pid = Number(rawPid);
+
+  if (!Number.isInteger(pid) || pid <= 0) {
+    throw new Error(
+      `Range command ${usage.split(" ")[0]} requires a positive integer pid.`,
+    );
+  }
+
+  return pid;
+}
+
 export function parseRangeCommand(
   input: string,
 ): RangeParsedCommand {
@@ -189,12 +207,46 @@ export function parseRangeCommand(
         },
       };
 
+    case "process":
+      requireNoExtraArgs(
+        args,
+        1,
+        "process <pid>",
+      );
+      return {
+        kind: "runtime",
+        command: {
+          type: "get_process",
+          pid: requirePositivePid(
+            args[0],
+            "process <pid>",
+          ),
+        },
+      };
+
     case "services":
       requireNoExtraArgs(args, 0, "services");
       return {
         kind: "runtime",
         command: {
           type: "list_services",
+        },
+      };
+
+    case "service":
+      requireNoExtraArgs(
+        args,
+        1,
+        "service <name>",
+      );
+      return {
+        kind: "runtime",
+        command: {
+          type: "get_service",
+          name: requireArgument(
+            args[0],
+            "service <name>",
+          ),
         },
       };
 
@@ -358,31 +410,18 @@ export function parseRangeCommand(
       };
     }
 
-    case "kill": {
+    case "kill":
       requireNoExtraArgs(args, 1, "kill <pid>");
-      const rawPid = requireArgument(
-        args[0],
-        "kill <pid>",
-      );
-      const pid = Number(rawPid);
-
-      if (
-        !Number.isInteger(pid) ||
-        pid <= 0
-      ) {
-        throw new Error(
-          "Range command kill requires a positive integer pid.",
-        );
-      }
-
       return {
         kind: "runtime",
         command: {
           type: "terminate_process",
-          pid,
+          pid: requirePositivePid(
+            args[0],
+            "kill <pid>",
+          ),
         },
       };
-    }
 
     case "quarantine":
       requireNoExtraArgs(
