@@ -133,6 +133,7 @@ export function applySimulationEvent(
     case "ENDPOINT_HEARTBEAT":
     case "HOST_PROCESS_TERMINATED":
     case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_SERVICE_STARTUP_MODE_CHANGED":
     case "HOST_FILE_QUARANTINED":
     case "HOST_EVIDENCE_COLLECTED":
     case "ALERT_CREATED":
