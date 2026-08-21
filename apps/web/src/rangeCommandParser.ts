@@ -26,6 +26,7 @@ export const RANGE_COMMAND_HELP = [
   "history [process|file|service|configuration|connection <id>]",
   "stop-service <name>",
   "start-service <name>",
+  "set-startup <name> <automatic|manual|disabled>",
   "kill <pid>",
   "quarantine <path> <destination>",
 ] as const;
@@ -39,6 +40,23 @@ const HISTORY_OBJECT_KINDS = new Set<
   "configuration",
   "connection",
 ]);
+
+const SERVICE_STARTUP_MODES = [
+  "automatic",
+  "manual",
+  "disabled",
+] as const;
+
+type ServiceStartupMode =
+  (typeof SERVICE_STARTUP_MODES)[number];
+
+function isServiceStartupMode(
+  value: string,
+): value is ServiceStartupMode {
+  return SERVICE_STARTUP_MODES.some(
+    (candidate) => candidate === value,
+  );
+}
 
 function tokenize(
   input: string,
@@ -308,6 +326,37 @@ export function parseRangeCommand(
           ),
         },
       };
+
+    case "set-startup": {
+      requireNoExtraArgs(
+        args,
+        2,
+        "set-startup <name> <automatic|manual|disabled>",
+      );
+      const serviceName = requireArgument(
+        args[0],
+        "set-startup <name> <automatic|manual|disabled>",
+      );
+      const startupMode = requireArgument(
+        args[1],
+        "set-startup <name> <automatic|manual|disabled>",
+      ).toLowerCase();
+
+      if (!isServiceStartupMode(startupMode)) {
+        throw new Error(
+          `Range command set-startup requires automatic, manual, or disabled; received: ${startupMode}.`,
+        );
+      }
+
+      return {
+        kind: "runtime",
+        command: {
+          type: "set_service_startup_mode",
+          name: serviceName,
+          startupMode,
+        },
+      };
+    }
 
     case "kill": {
       requireNoExtraArgs(args, 1, "kill <pid>");
