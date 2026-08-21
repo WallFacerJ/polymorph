@@ -10,6 +10,8 @@ The hosted build is deployed from `main` with GitHub Pages. If the deployment is
 
 For a first-time test, you do not need to read the repository first. Open **Quick test** inside the app and follow the five-minute flow, or use [TESTER_GUIDE.md](TESTER_GUIDE.md) for the same short procedure plus optional deeper checks.
 
+The **Interface** selector includes three persisted visual systems: **Midnight SOC** for the primary modern operations look, **Graphite Workbench** for a neutral enterprise workstation treatment, and **Retro Ops 98** for a colorful late-90s PC/gaming-inspired operations skin.
+
 ## What ships in v1
 
 Polymorph v1 includes:
@@ -25,7 +27,7 @@ Polymorph v1 includes:
 - a read-only finalized case until reset;
 - post-finalization instructor ground-truth review;
 - three JSON-authored scenarios selectable in the UI;
-- two persisted professional interface styles: **Midnight SOC** and **Graphite**;
+- three persisted interface styles: **Midnight SOC**, **Graphite Workbench**, and **Retro Ops 98**;
 - deterministic replay/unit/integration coverage plus browser-level Playwright tests.
 
 ## Included scenarios
