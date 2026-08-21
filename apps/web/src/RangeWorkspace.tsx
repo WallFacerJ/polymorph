@@ -275,8 +275,7 @@ export function RangeWorkspace({
       host,
       relationships,
       selectedProcessId,
-    ]),
-  );
+    ]);
 
   const runningProcesses =
     host.processes.filter(
