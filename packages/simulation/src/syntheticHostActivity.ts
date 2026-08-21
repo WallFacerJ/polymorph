@@ -9,6 +9,7 @@ import type {
 
 import type {
   SyntheticHostConfigValue,
+  SyntheticHostServiceStartupMode,
   SyntheticHostServiceStatus,
   SyntheticHostState,
 } from "./syntheticHost";
@@ -57,6 +58,16 @@ export type SyntheticHostActivity =
         type: "service_state";
         serviceName: string;
         status: SyntheticHostServiceStatus;
+      }
+    )
+  | (
+      SyntheticHostActivityBase & {
+        type: "service_startup_mode";
+        serviceName: string;
+        previousStartupMode:
+          SyntheticHostServiceStartupMode;
+        startupMode:
+          SyntheticHostServiceStartupMode;
       }
     )
   | (
@@ -166,6 +177,7 @@ export function getSyntheticHostActivityRefs(
       ]);
 
     case "service_state":
+    case "service_startup_mode":
       return [ref("service", record.serviceName)];
 
     case "configuration_change":
@@ -412,6 +424,22 @@ export function validateSyntheticHostActivity(
         }
         break;
 
+      case "service_startup_mode":
+        if (!serviceNames.has(record.serviceName)) {
+          throw new Error(
+            `Synthetic host activity ${record.id} references missing service: ${record.serviceName}`,
+          );
+        }
+        if (
+          record.previousStartupMode ===
+          record.startupMode
+        ) {
+          throw new Error(
+            `Synthetic host activity ${record.id} service startup mode must change.`,
+          );
+        }
+        break;
+
       case "configuration_change":
         if (!configurationKeys.has(record.key)) {
           throw new Error(
@@ -513,6 +541,8 @@ export function summarizeSyntheticHostActivity(
       return `${record.operation} ${record.filePath}${record.processId === undefined ? "" : ` by process ${record.processId}`}`;
     case "service_state":
       return `Service ${record.serviceName} became ${record.status}`;
+    case "service_startup_mode":
+      return `Service ${record.serviceName} startup changed ${record.previousStartupMode} -> ${record.startupMode}`;
     case "configuration_change":
       return `Configuration ${record.key} changed`;
     case "network_connection":
