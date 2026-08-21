@@ -20,6 +20,15 @@ import type {
 } from "./syntheticHost";
 
 import {
+  validateSyntheticHostRelationships,
+} from "./syntheticHostRelationship";
+
+import type {
+  SyntheticHostAuthoredRelationship,
+  SyntheticHostRelationshipSet,
+} from "./syntheticHostRelationship";
+
+import {
   getScenarioState,
   validateScenarioDefinition,
 } from "./scenario";
@@ -40,6 +49,12 @@ type ScenarioInvestigationInput =
       readonly string[];
   };
 
+export interface ScenarioSyntheticHostInput
+  extends SyntheticHostSeed {
+  relationships?:
+    readonly SyntheticHostAuthoredRelationship[];
+}
+
 import type {
   ScenarioObjective,
 } from "./scenarioOutcome";
@@ -54,7 +69,7 @@ export interface ScenarioDefinitionInput {
   initialWorld: WorldSeed;
 
   syntheticHosts?:
-    readonly SyntheticHostSeed[];
+    readonly ScenarioSyntheticHostInput[];
 
   openingEvents:
     readonly SimulationEvent[];
@@ -189,6 +204,41 @@ function compileSyntheticHosts(
   });
 }
 
+function compileSyntheticHostRelationships(
+  input: ScenarioDefinitionInput,
+  hosts: readonly SyntheticHostState[],
+): readonly SyntheticHostRelationshipSet[] {
+  const hostByDeviceId = new Map(
+    hosts.map((host) => [host.deviceId, host]),
+  );
+
+  return (
+    input.syntheticHosts ?? []
+  ).map((seed) => {
+    const host = hostByDeviceId.get(seed.deviceId);
+
+    if (!host) {
+      throw new Error(
+        `Scenario ${input.id} cannot resolve synthetic host relationship graph for device: ${seed.deviceId}`,
+      );
+    }
+
+    const relationships = structuredClone(
+      seed.relationships ?? [],
+    );
+
+    validateSyntheticHostRelationships(
+      host,
+      relationships,
+    );
+
+    return {
+      deviceId: seed.deviceId,
+      relationships,
+    };
+  });
+}
+
 export function compileScenarioDefinition(
   input: ScenarioDefinitionInput,
 ): ScenarioDefinition {
@@ -201,6 +251,11 @@ export function compileScenarioDefinition(
       input,
       initialWorld,
     );
+  const syntheticHostRelationships =
+    compileSyntheticHostRelationships(
+      input,
+      syntheticHosts,
+    );
 
   const scenario: ScenarioDefinition = {
     id: input.id,
@@ -208,6 +263,7 @@ export function compileScenarioDefinition(
     description: input.description,
     initialWorld,
     syntheticHosts,
+    syntheticHostRelationships,
     openingEvents:
       structuredClone(
         input.openingEvents,
