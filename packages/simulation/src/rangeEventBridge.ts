@@ -7,6 +7,14 @@ import {
   InMemoryEventStore,
 } from "./eventStore";
 
+import {
+  createRangeArtifact,
+} from "./rangeArtifact";
+
+import {
+  createRangeArtifactEvidenceEvent,
+} from "./rangeArtifactEvent";
+
 import type {
   HostEvidenceCollectedEvent,
   SimulationEvent,
@@ -266,158 +274,31 @@ export function replayRangeCommandsWithEvents(
   };
 }
 
-function uniqueStrings(
-  values: readonly (string | undefined)[],
-): string[] {
-  return [
-    ...new Set(
-      values.filter(
-        (value): value is string =>
-          Boolean(value),
-      ),
-    ),
-  ];
-}
-
 export function createRangeEvidenceEvent(
   input: RangeEvidenceEventInput,
 ): HostEvidenceCollectedEvent {
-  const result = input.execution.result;
-  let evidenceKind:
-    HostEvidenceCollectedEvent["payload"]["evidenceKind"];
-  let targetId: string;
-  let summary: string;
-  let relatedEntityIds: EntityId[] = [
-    input.deviceId,
-  ];
-  let indicatorIps: string[] = [];
-
-  switch (result.kind) {
-    case "file":
-      evidenceKind = "file";
-      targetId = result.file.path;
-      summary =
-        `Range file ${result.file.path}; sha256 ${result.file.sha256 ?? "unknown"}; quarantined ${String(result.file.quarantined)}.`;
-      break;
-
-    case "files":
-      evidenceKind = "file";
-      targetId = "filesystem-listing";
-      summary =
-        `Range filesystem listing captured ${result.files.length} file(s).`;
-      break;
-
-    case "process":
-      evidenceKind = "process";
-      targetId = String(result.process.pid);
-      summary =
-        `Range process ${result.process.pid}: ${result.process.image} ${result.process.commandLine}`;
-      relatedEntityIds = uniqueStrings([
-        input.deviceId,
-        result.process.accountId,
-      ]);
-      break;
-
-    case "processes":
-      evidenceKind = "process";
-      targetId = "process-list";
-      summary =
-        `Range process inventory captured ${result.processes.length} process(es).`;
-      relatedEntityIds = uniqueStrings([
-        input.deviceId,
-        ...result.processes.map(
-          (process) => process.accountId,
-        ),
-      ]);
-      break;
-
-    case "service":
-      evidenceKind = "service";
-      targetId = result.service.name;
-      summary =
-        `Range service ${result.service.name} is ${result.service.status}; executable ${result.service.executable}.`;
-      break;
-
-    case "services":
-      evidenceKind = "service";
-      targetId = "service-list";
-      summary =
-        `Range service inventory captured ${result.services.length} service(s).`;
-      break;
-
-    case "users":
-      evidenceKind = "identity";
-      targetId = "local-users";
-      summary =
-        `Range local-user inventory captured ${result.users.length} user(s).`;
-      break;
-
-    case "groups":
-      evidenceKind = "identity";
-      targetId = "local-groups";
-      summary =
-        `Range local-group inventory captured ${result.groups.length} group(s).`;
-      break;
-
-    case "configuration":
-      evidenceKind = "configuration";
-      targetId = result.key;
-      summary =
-        `Range configuration ${result.key} = ${String(result.value)}.`;
-      break;
-
-    case "logs":
-      evidenceKind = "log";
-      targetId =
-        input.invocation.command.type === "list_logs"
-          ? input.invocation.command.channel ?? "all-logs"
-          : "logs";
-      summary =
-        `Range log collection captured ${result.logs.length} record(s).`;
-      break;
-
-    case "network":
-      evidenceKind = "network";
-      targetId = "network-state";
-      summary =
-        `Range network state captured ${result.network.connections.length} connection(s) and ${result.network.listeners.length} listener(s).`;
-      indicatorIps = uniqueStrings([
-        ...result.network.connections.flatMap(
-          (connection) => [
-            connection.localAddress,
-            connection.remoteAddress,
-          ],
-        ),
-        ...result.network.listeners.map(
-          (listener) => listener.address,
-        ),
-      ]);
-      break;
-
-    case "mutation":
-      throw new Error(
-        "Range mutation results are already recorded as canonical host-action events and cannot be collected as duplicate evidence.",
-      );
+  if (input.execution.result.kind === "mutation") {
+    throw new Error(
+      "Range mutation results are already recorded as canonical host-action events and cannot be collected as duplicate evidence.",
+    );
   }
 
-  return {
+  const artifact = createRangeArtifact({
+    id: `${input.invocation.id}-artifact`,
+    acquiredAt: input.timestamp,
+    deviceId: input.deviceId,
+    invocation: input.invocation,
+    execution: input.execution,
+  });
+
+  return createRangeArtifactEvidenceEvent({
     id: input.id,
     timestamp: input.timestamp,
-    source: "range",
     ...(input.actorId === undefined
       ? {}
       : { actorId: input.actorId }),
-    subjectId: input.deviceId,
-    type: "HOST_EVIDENCE_COLLECTED",
-    payload: {
-      deviceId: input.deviceId,
-      evidenceKind,
-      targetId,
-      summary,
-      relatedEntityIds,
-      indicatorIps,
-    },
-  };
+    artifact,
+  });
 }
 
 export function mergeSimulationEventHistory(
