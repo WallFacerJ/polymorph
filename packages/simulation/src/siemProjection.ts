@@ -80,6 +80,7 @@ function createFamilyCounts():
     file: 0,
     network: 0,
     endpoint: 0,
+    host: 0,
     security: 0,
   };
 }
@@ -126,6 +127,18 @@ function getMessage(
 
     case "ENDPOINT_HEARTBEAT":
       return `Endpoint heartbeat from ${event.payload.deviceId}: ${event.payload.status}`;
+
+    case "HOST_PROCESS_TERMINATED":
+      return `Range terminated process ${event.payload.processId} on ${event.payload.deviceId}: ${event.payload.image}`;
+
+    case "HOST_SERVICE_STATE_CHANGED":
+      return `Range changed service ${event.payload.serviceName} on ${event.payload.deviceId}: ${event.payload.previousStatus} -> ${event.payload.status}`;
+
+    case "HOST_FILE_QUARANTINED":
+      return `Range quarantined ${event.payload.originalPath} on ${event.payload.deviceId}`;
+
+    case "HOST_EVIDENCE_COLLECTED":
+      return `Range evidence collected (${event.payload.evidenceKind}): ${event.payload.targetId}`;
 
     case "ALERT_CREATED":
       return `Alert created: ${event.payload.title}`;
@@ -246,6 +259,52 @@ function getFields(
         ],
       });
 
+    case "HOST_PROCESS_TERMINATED":
+      return definedFields({
+        deviceId: event.payload.deviceId,
+        processId: event.payload.processId,
+        image: event.payload.image,
+        accountId: event.payload.accountId,
+        closedConnectionIds: [
+          ...event.payload.closedConnectionIds,
+        ],
+        closedListenerIds: [
+          ...event.payload.closedListenerIds,
+        ],
+      });
+
+    case "HOST_SERVICE_STATE_CHANGED":
+      return definedFields({
+        deviceId: event.payload.deviceId,
+        serviceName: event.payload.serviceName,
+        previousStatus:
+          event.payload.previousStatus,
+        status: event.payload.status,
+      });
+
+    case "HOST_FILE_QUARANTINED":
+      return definedFields({
+        deviceId: event.payload.deviceId,
+        originalPath: event.payload.originalPath,
+        quarantinePath:
+          event.payload.quarantinePath,
+        sha256: event.payload.sha256,
+      });
+
+    case "HOST_EVIDENCE_COLLECTED":
+      return definedFields({
+        deviceId: event.payload.deviceId,
+        evidenceKind: event.payload.evidenceKind,
+        targetId: event.payload.targetId,
+        summary: event.payload.summary,
+        relatedEntityIds: [
+          ...event.payload.relatedEntityIds,
+        ],
+        indicatorIps: [
+          ...event.payload.indicatorIps,
+        ],
+      });
+
     case "ALERT_CREATED":
       return definedFields({
         alertId: event.payload.alertId,
@@ -263,6 +322,37 @@ function getFields(
 
     default:
       return assertNever(event);
+  }
+}
+
+function getRelatedEntityIds(
+  event: SimulationEvent,
+): readonly EntityId[] {
+  switch (event.type) {
+    case "ALERT_CREATED":
+      return [
+        ...event.payload.relatedEntityIds,
+      ];
+
+    case "HOST_PROCESS_TERMINATED":
+      return [
+        event.payload.deviceId,
+        ...(event.payload.accountId
+          ? [event.payload.accountId]
+          : []),
+      ];
+
+    case "HOST_SERVICE_STATE_CHANGED":
+    case "HOST_FILE_QUARANTINED":
+      return [event.payload.deviceId];
+
+    case "HOST_EVIDENCE_COLLECTED":
+      return [
+        ...event.payload.relatedEntityIds,
+      ];
+
+    default:
+      return [];
   }
 }
 
@@ -290,9 +380,7 @@ function normalizeEvent(
         ? [...event.payload.relatedEventIds]
         : [],
     relatedEntityIds:
-      isAlert
-        ? [...event.payload.relatedEntityIds]
-        : [],
+      getRelatedEntityIds(event),
     message: getMessage(event),
     fields: getFields(event),
   };
