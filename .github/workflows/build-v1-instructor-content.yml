@@ -1,0 +1,242 @@
+name: Build v1 instructor content
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'feat/instructor-multi-scenario'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v7
+        with:
+          ref: feat/instructor-multi-scenario
+
+      - name: Add schema, instructor wiring, and v1 scenarios
+        shell: python
+        run: |
+          import copy
+          import json
+          from pathlib import Path
+
+          schema_path = Path('packages/schema/src/scenario.ts')
+          schema = schema_path.read_text()
+          if 'scenarioGroundTruthSchema' not in schema:
+              marker = 'export const scenarioInvestigationSchema =\n'
+              addition = '''export const scenarioGroundTruthEventSchema =\n  z.object({\n    eventId: entityIdSchema,\n    significance: nonEmptyStringSchema,\n  }).strict();\n\nexport const scenarioGroundTruthSchema =\n  z.object({\n    summary: nonEmptyStringSchema,\n    timeline:\n      z.array(scenarioGroundTruthEventSchema)\n        .min(1),\n  }).strict();\n\n'''
+              if marker not in schema:
+                  raise SystemExit('schema ground-truth insertion marker not found')
+              schema = schema.replace(marker, addition + marker, 1)
+              old = '''    investigation:\n      scenarioInvestigationSchema,\n  }).strict();'''
+              new = '''    investigation:\n      scenarioInvestigationSchema,\n    groundTruth:\n      scenarioGroundTruthSchema.optional(),\n  }).strict();'''
+              if old not in schema:
+                  raise SystemExit('scenario spec marker not found')
+              schema = schema.replace(old, new, 1)
+              type_marker = '''export type ScenarioInvestigationSpec =\n  z.infer<typeof scenarioInvestigationSchema>;\n'''
+              type_addition = '''export type ScenarioGroundTruthSpec =\n  z.infer<typeof scenarioGroundTruthSchema>;\n\n'''
+              if type_marker not in schema:
+                  raise SystemExit('scenario type marker not found')
+              schema = schema.replace(type_marker, type_addition + type_marker, 1)
+              schema_path.write_text(schema)
+
+          app_path = Path('apps/web/src/App.tsx')
+          app = app_path.read_text()
+          if 'from "./InstructorReviewPanel"' not in app:
+              marker = '''import {\n  ResponseActionPanel,\n} from "./ResponseActionPanel";\n'''
+              addition = '''\nimport {\n  InstructorReviewPanel,\n} from "./InstructorReviewPanel";\n'''
+              if marker not in app:
+                  raise SystemExit('App import marker not found')
+              app = app.replace(marker, marker + addition, 1)
+
+          if 'instructorMode: boolean;' not in app:
+              old = '''interface ScenarioWorkspaceProps {\n  scenario: ScenarioDefinition;\n  scenarioPath: string;\n}\n\nfunction ScenarioWorkspace({\n  scenario,\n  scenarioPath,\n}: ScenarioWorkspaceProps) {'''
+              new = '''interface ScenarioWorkspaceProps {\n  scenario: ScenarioDefinition;\n  scenarioPath: string;\n  instructorMode: boolean;\n}\n\nfunction ScenarioWorkspace({\n  scenario,\n  scenarioPath,\n  instructorMode,\n}: ScenarioWorkspaceProps) {'''
+              if old not in app:
+                  raise SystemExit('App workspace props marker not found')
+              app = app.replace(old, new, 1)
+
+          if '<InstructorReviewPanel' not in app:
+              marker = '''            {scenarioState.finalized && (\n              <ScenarioResultPanel\n                status={scenarioState.outcome.status}\n                score={scenarioState.score}\n                actionCount={scenarioState.performedActionIds.length}\n                evidenceCount={analystCase.collectedEventIds.length}\n                findingCount={analystCase.findings.length}\n              />\n            )}\n'''
+              addition = '''\n            {scenarioState.finalized &&\n              instructorMode && (\n                <InstructorReviewPanel\n                  scenario={scenario}\n                  state={scenarioState}\n                />\n              )}\n'''
+              if marker not in app:
+                  raise SystemExit('App result panel marker not found')
+              app = app.replace(marker, marker + addition, 1)
+
+          if 'const instructorMode = useMemo(' not in app:
+              marker = '''function App() {\n  const scenarioPath = useMemo('''
+              replacement = '''function App() {\n  const instructorMode = useMemo(\n    () =>\n      new URLSearchParams(\n        window.location.search,\n      ).get("mode") === "instructor",\n    [],\n  );\n\n  const scenarioPath = useMemo('''
+              if marker not in app:
+                  raise SystemExit('App function marker not found')
+              app = app.replace(marker, replacement, 1)
+
+          if 'instructorMode={instructorMode}' not in app:
+              marker = '''    <ScenarioWorkspace\n      scenario={scenario}\n      scenarioPath={scenarioPath}\n    />'''
+              replacement = '''    <ScenarioWorkspace\n      scenario={scenario}\n      scenarioPath={scenarioPath}\n      instructorMode={instructorMode}\n    />'''
+              if marker not in app:
+                  raise SystemExit('App workspace render marker not found')
+              app = app.replace(marker, replacement, 1)
+
+          app_path.write_text(app)
+
+          base_path = Path('apps/web/public/scenarios/account-compromise.json')
+          base = json.loads(base_path.read_text())
+          scenario = base['scenario']
+          scenario['groundTruth'] = {
+              'summary': 'A compromised Finance account established an identity session from an unusual source, then executed encoded PowerShell and contacted an external synthetic address before EDR raised a correlated alert.',
+              'timeline': [
+                  {'eventId': 'event-compromise-login', 'significance': 'The successful authentication from an unusual source is the initial compromise signal.'},
+                  {'eventId': 'event-compromise-session', 'significance': 'The attacker-established identity session is the session that should be revoked.'},
+                  {'eventId': 'event-compromise-powershell', 'significance': 'Encoded PowerShell execution on the Finance endpoint is the primary endpoint execution signal.'},
+                  {'eventId': 'event-compromise-network', 'significance': 'The endpoint contacted a synthetic external address immediately after the suspicious process started.'},
+                  {'eventId': 'event-compromise-alert', 'significance': 'EDR correlated the identity, process, and network evidence into the analyst-facing alert.'},
+              ],
+          }
+          base_path.write_text(json.dumps(base, indent=2) + '\n')
+
+          def recursive_replace(value, replacements):
+              if isinstance(value, str):
+                  for old, new in replacements:
+                      value = value.replace(old, new)
+                  return value
+              if isinstance(value, list):
+                  return [recursive_replace(item, replacements) for item in value]
+              if isinstance(value, dict):
+                  return {key: recursive_replace(item, replacements) for key, item in value.items()}
+              return value
+
+          def make_variant(filename, replacements, overrides):
+              data = recursive_replace(copy.deepcopy(base), replacements)
+              s = data['scenario']
+              s['id'] = overrides['id']
+              s['name'] = overrides['name']
+              s['description'] = overrides['description']
+              user = s['initialWorld']['users'][0]
+              user['displayName'] = overrides['displayName']
+              user['email'] = overrides['email']
+              user['department'] = overrides['department']
+              user['title'] = overrides['title']
+              account = s['initialWorld']['accounts'][0]
+              account['username'] = overrides['username']
+              account['roles'] = overrides['roles']
+              device = s['initialWorld']['devices'][0]
+              device['hostname'] = overrides['hostname']
+              device['ipAddresses'] = [overrides['deviceIp']]
+              heartbeat = next(e for e in s['openingEvents'] if e['type'] == 'ENDPOINT_HEARTBEAT')
+              heartbeat['payload']['ipAddresses'] = [overrides['deviceIp']]
+              login = next(e for e in s['openingEvents'] if e['type'] == 'AUTH_LOGIN_SUCCEEDED')
+              login['payload']['sourceIp'] = overrides['sourceIp']
+              process = next(e for e in s['openingEvents'] if e['type'] == 'PROCESS_STARTED')
+              process['payload']['image'] = overrides['image']
+              process['payload']['commandLine'] = overrides['commandLine']
+              network = next(e for e in s['openingEvents'] if e['type'] == 'NETWORK_CONNECTION')
+              network['payload']['sourceIp'] = overrides['deviceIp']
+              network['payload']['destinationIp'] = overrides['destinationIp']
+              alert = next(e for e in s['openingEvents'] if e['type'] == 'ALERT_CREATED')
+              alert['payload']['title'] = overrides['alertTitle']
+              s['groundTruth']['summary'] = overrides['groundTruthSummary']
+              for entry, significance in zip(s['groundTruth']['timeline'], overrides['significance']):
+                  entry['significance'] = significance
+              Path('apps/web/public/scenarios/' + filename).write_text(
+                  json.dumps(data, indent=2) + '\n'
+              )
+
+          make_variant(
+              'hr-malware-beacon.json',
+              [
+                  ('scenario-account-compromise-001', 'scenario-hr-malware-001'),
+                  ('user-sarah-martinez', 'user-jordan-lee'),
+                  ('account-smartinez', 'account-jlee'),
+                  ('device-fin-lt-04', 'device-hr-lt-12'),
+                  ('session-smartinez-compromised', 'session-jlee-compromised'),
+                  ('smartinez', 'jlee'),
+                  ('FIN-LT-04', 'HR-LT-12'),
+                  ('10.20.30.44', '10.20.40.12'),
+                  ('event-compromise-', 'event-hr-malware-'),
+              ],
+              {
+                  'id': 'scenario-hr-malware-001',
+                  'name': 'Unsigned HR updater with outbound beacon',
+                  'description': 'Investigate a compromised HR identity session followed by unsigned executable activity and an outbound beacon from the employee workstation.',
+                  'displayName': 'Jordan Lee',
+                  'email': 'jordan.lee@acme.test',
+                  'department': 'Human Resources',
+                  'title': 'HR Operations Specialist',
+                  'username': 'jlee',
+                  'roles': ['hr-user'],
+                  'hostname': 'HR-LT-12',
+                  'deviceIp': '10.20.40.12',
+                  'sourceIp': '198.51.100.88',
+                  'image': r'C:\Users\jlee\AppData\Local\Temp\update.exe',
+                  'commandLine': 'update.exe --silent --synthetic-checkin',
+                  'destinationIp': '198.51.100.77',
+                  'alertTitle': 'Unsigned updater beacon after suspicious HR login',
+                  'groundTruthSummary': 'A compromised HR account established a session, launched a synthetic unsigned updater from a temporary directory, and beaconed externally before EDR correlated the activity.',
+                  'significance': [
+                      'The unusual successful HR login establishes the identity compromise.',
+                      'The attacker-controlled HR session is the session requiring revocation.',
+                      'An unsigned executable launched from a temporary user directory on the HR workstation.',
+                      'The executable immediately initiated a synthetic outbound beacon.',
+                      'EDR correlated the identity, process, and network sequence into the analyst alert.',
+                  ],
+              },
+          )
+
+          make_variant(
+              'cloud-admin-compromise.json',
+              [
+                  ('scenario-account-compromise-001', 'scenario-cloud-admin-001'),
+                  ('user-sarah-martinez', 'user-priya-shah'),
+                  ('account-smartinez', 'account-pshah-admin'),
+                  ('device-fin-lt-04', 'device-adm-lt-02'),
+                  ('session-smartinez-compromised', 'session-pshah-compromised'),
+                  ('smartinez', 'pshah-admin'),
+                  ('FIN-LT-04', 'ADM-LT-02'),
+                  ('10.20.30.44', '10.20.50.22'),
+                  ('event-compromise-', 'event-cloud-admin-'),
+              ],
+              {
+                  'id': 'scenario-cloud-admin-001',
+                  'name': 'Suspicious cloud-admin login and tooling',
+                  'description': 'Investigate a privileged cloud-admin identity compromise followed by unusual administrative tooling and outbound activity.',
+                  'displayName': 'Priya Shah',
+                  'email': 'priya.shah@acme.test',
+                  'department': 'Information Technology',
+                  'title': 'Cloud Platform Administrator',
+                  'username': 'pshah-admin',
+                  'roles': ['cloud-admin'],
+                  'hostname': 'ADM-LT-02',
+                  'deviceIp': '10.20.50.22',
+                  'sourceIp': '203.0.113.144',
+                  'image': r'C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd',
+                  'commandLine': 'az account get-access-token --resource synthetic-training-resource',
+                  'destinationIp': '192.0.2.55',
+                  'alertTitle': 'Privileged cloud-admin tooling after unusual login',
+                  'groundTruthSummary': 'A privileged cloud administrator account was used from an unusual source, established a compromised session, invoked administrative tooling, and contacted a synthetic external address.',
+                  'significance': [
+                      'The unusual successful login involves a privileged cloud-admin account.',
+                      'The compromised privileged session is the identity foothold requiring revocation.',
+                      'Administrative cloud tooling was invoked from the administrator workstation shortly after compromise.',
+                      'The workstation contacted a synthetic external address after the administrative command.',
+                      'EDR surfaced the correlated privileged-identity and endpoint activity to the analyst.',
+                  ],
+              },
+          )
+
+      - name: Commit generated v1 content
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- packages/schema/src/scenario.ts apps/web/src/App.tsx apps/web/public/scenarios
+          git commit -m "feat: add instructor mode and v1 scenario set"
+          git push origin HEAD:feat/instructor-multi-scenario
