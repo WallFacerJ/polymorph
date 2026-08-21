@@ -202,15 +202,29 @@ function ScenarioWorkspace({
     [scenario, rangeDeviceId],
   );
 
+  const rangeActivityRecords = useMemo(
+    () =>
+      (scenario.syntheticHostActivity ?? []).find(
+        (activitySet) =>
+          activitySet.deviceId === rangeDeviceId,
+      )?.records ?? [],
+    [scenario.syntheticHostActivity, rangeDeviceId],
+  );
+
   const rangeReplay = useMemo(
     () =>
       rangeInitialHost
         ? replayRangeCommandsWithEvents(
             rangeInitialHost,
             rangeInvocations,
+            rangeActivityRecords,
           )
         : null,
-    [rangeInitialHost, rangeInvocations],
+    [
+      rangeInitialHost,
+      rangeInvocations,
+      rangeActivityRecords,
+    ],
   );
 
   const canonicalEvents = useMemo(
@@ -467,6 +481,7 @@ function ScenarioWorkspace({
           ...rangeInvocations,
           invocation,
         ],
+        rangeActivityRecords,
       );
       setRangeInvocations((current) => [
         ...current,
